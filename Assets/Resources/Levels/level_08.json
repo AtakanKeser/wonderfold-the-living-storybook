@@ -1,0 +1,77 @@
+{
+  "format": 1,
+  "id": 8,
+  "name": "Two-Faced Marquee",
+  "book": "midnight-carnival",
+  "chapter": 2,
+  "width": 8,
+  "height": 8,
+  "moves": 30,
+  "designWinRate": 0.65,
+  "dioramaPiece": "marquee-sign",
+  "tutorial": "objective-both-faces",
+  "intro": [
+    "MIRA: Half the sign is torn on this side. The other half is torn on the other.",
+    "QUILL: A marquee with commitment issues."
+  ],
+  "spawnTables": [
+    { "colors": ["Crimson", "Azure", "Meadow", "Amber", "Violet"] }
+  ],
+  "folds": [
+    {
+      "id": 1,
+      "name": "Marquee Panel",
+      "rect": [2, 2, 4, 5],
+      "flipAxis": "Horizontal",
+      "meterCost": 60,
+      "moveCost": 1
+    }
+  ],
+  "front": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ],
+    "obstacles": [
+      "........",
+      "..TTTT..",
+      "........",
+      "..T..T..",
+      "........",
+      "........",
+      "........",
+      "........"
+    ]
+  },
+  "back": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ],
+    "obstacles": [
+      "........",
+      "..T..T..",
+      "........",
+      "..TTTT..",
+      "..T..T..",
+      "........",
+      "........",
+      "........"
+    ]
+  },
+  "goals": [
+    { "type": "obstacle", "obstacle": "TornPage" }
+  ]
+}

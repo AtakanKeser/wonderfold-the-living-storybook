@@ -1,0 +1,70 @@
+{
+  "format": 1,
+  "id": 12,
+  "name": "Chain Fold",
+  "book": "midnight-carnival",
+  "chapter": 2,
+  "width": 8,
+  "height": 8,
+  "moves": 34,
+  "designWinRate": 0.55,
+  "dioramaPiece": "hall-of-lanterns",
+  "tutorial": "chain-fold",
+  "intro": [
+    "FOLIO: Leave something powerful sitting on the crease and then turn the page.",
+    "QUILL: It comes out the other side... bigger.",
+    "FOLIO: It comes out the other side ANGRIER."
+  ],
+  "outro": ["QUILL: Remind me never to nap on a fold line."],
+  "spawnTables": [
+    { "colors": ["Crimson", "Azure", "Meadow", "Amber", "Violet"] }
+  ],
+  "folds": [
+    {
+      "id": 1,
+      "name": "Lantern Leaf",
+      "rect": [0, 0, 4, 8],
+      "flipAxis": "Vertical",
+      "meterCost": 50,
+      "moveCost": 1
+    }
+  ],
+  "front": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ]
+  },
+  "back": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ],
+    "obstacles": [
+      "........",
+      "WW......",
+      "WW......",
+      "........",
+      "........",
+      "WW......",
+      "WW......",
+      "........"
+    ]
+  },
+  "goals": [
+    { "type": "obstacle", "obstacle": "WaxSeal" },
+    { "type": "collect", "color": "Amber", "count": 30 }
+  ]
+}

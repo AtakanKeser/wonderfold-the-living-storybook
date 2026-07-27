@@ -1,0 +1,132 @@
+{
+  "format": 1,
+  "id": 20,
+  "name": "The Paper Dragon",
+  "book": "midnight-carnival",
+  "chapter": 4,
+  "width": 9,
+  "height": 9,
+  "moves": 46,
+  "designWinRate": 0.4,
+  "foldMeterMax": 100,
+  "dioramaPiece": "midnight-fireworks",
+  "tutorial": "boss",
+  "intro": [
+    "THE BLANK: I made it out of every ending I took.",
+    "QUILL: It is a dragon made of unfinished sentences.",
+    "MIRA: Then we finish them."
+  ],
+  "outro": [
+    "LUNA: ...and the carnival opened at midnight, and it never closed again.",
+    "MIRA: That is the ending.",
+    "FOLIO: That is AN ending. Write the next one."
+  ],
+  "spawnTables": [
+    { "colors": ["Crimson", "Azure", "Meadow", "Amber", "Violet"] }
+  ],
+  "folds": [
+    {
+      "id": 1,
+      "name": "Left Wing",
+      "rect": [0, 0, 3, 9],
+      "flipAxis": "Vertical",
+      "frontGravity": "Down",
+      "backGravity": "Down",
+      "meterCost": 55,
+      "moveCost": 1
+    },
+    {
+      "id": 2,
+      "name": "Right Wing",
+      "rect": [6, 0, 3, 9],
+      "flipAxis": "Vertical",
+      "frontGravity": "Down",
+      "backGravity": "Up",
+      "meterCost": 55,
+      "moveCost": 1
+    }
+  ],
+  "front": {
+    "tiles": [
+      ".........",
+      ".........",
+      ".........",
+      ".........",
+      ".........",
+      ".........",
+      ".........",
+      ".........",
+      "........."
+    ]
+  },
+  "back": {
+    "tiles": [
+      ".........",
+      ".........",
+      ".........",
+      ".........",
+      ".........",
+      ".........",
+      ".........",
+      ".........",
+      "........."
+    ],
+    "obstacles": [
+      ".........",
+      "W........",
+      ".........",
+      "........W",
+      ".........",
+      "W........",
+      ".........",
+      "........W",
+      "........."
+    ]
+  },
+  "modifiers": [
+    {
+      "type": "boss",
+      "period": 6,
+      "count": 1,
+      "phases": [
+        [
+          ".........",
+          "...AAA...",
+          "..A...A..",
+          ".........",
+          ".........",
+          ".........",
+          ".........",
+          ".........",
+          "........."
+        ],
+        [
+          ".........",
+          ".........",
+          "..A...A..",
+          "...A.A...",
+          "....A....",
+          ".........",
+          ".........",
+          ".........",
+          "........."
+        ],
+        [
+          ".........",
+          ".........",
+          ".........",
+          "...AAA...",
+          "..A...A..",
+          "...A.A...",
+          ".........",
+          ".........",
+          "........."
+        ]
+      ]
+    }
+  ],
+  "goals": [
+    { "type": "boss" },
+    { "type": "obstacle", "obstacle": "WaxSeal" }
+  ]
+}

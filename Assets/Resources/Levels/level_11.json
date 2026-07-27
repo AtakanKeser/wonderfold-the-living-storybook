@@ -1,0 +1,79 @@
+{
+  "format": 1,
+  "id": 11,
+  "name": "Knotted Pages",
+  "book": "midnight-carnival",
+  "chapter": 2,
+  "width": 8,
+  "height": 8,
+  "moves": 30,
+  "designWinRate": 0.62,
+  "dioramaPiece": "mirror-maze-hall",
+  "tutorial": "story-knot",
+  "intro": [
+    "QUILL: Someone has stitched the two faces together. Badly.",
+    "MIRA: Cut it from either side and the whole knot lets go?",
+    "QUILL: That is the one merciful thing about knots."
+  ],
+  "spawnTables": [
+    { "colors": ["Crimson", "Azure", "Meadow", "Amber", "Violet"] }
+  ],
+  "folds": [
+    {
+      "id": 1,
+      "name": "Knotted Leaf",
+      "rect": [2, 1, 4, 6],
+      "flipAxis": "Vertical",
+      "meterCost": 50,
+      "moveCost": 1
+    }
+  ],
+  "front": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ],
+    "obstacles": [
+      "........",
+      "..K..K..",
+      "........",
+      "...KK...",
+      "........",
+      "..K..K..",
+      "........",
+      "........"
+    ]
+  },
+  "back": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ],
+    "obstacles": [
+      "........",
+      "..K..K..",
+      "........",
+      "...KK...",
+      "........",
+      "..K..K..",
+      "........",
+      "........"
+    ]
+  },
+  "goals": [
+    { "type": "obstacle", "obstacle": "StoryKnot" },
+    { "type": "collect", "color": "Meadow", "count": 24 }
+  ]
+}

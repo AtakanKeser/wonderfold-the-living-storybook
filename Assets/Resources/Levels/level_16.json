@@ -1,0 +1,65 @@
+{
+  "format": 1,
+  "id": 16,
+  "name": "Restore the Illustration",
+  "book": "midnight-carnival",
+  "chapter": 3,
+  "width": 8,
+  "height": 8,
+  "moves": 30,
+  "designWinRate": 0.62,
+  "dioramaPiece": "ferris-wheel-cabins",
+  "tutorial": "illustration",
+  "intro": [
+    "MIRA: There is a picture under all this.",
+    "FOLIO: There is always a picture under all this."
+  ],
+  "spawnTables": [
+    { "colors": ["Crimson", "Azure", "Meadow", "Amber", "Violet"] }
+  ],
+  "folds": [
+    {
+      "id": 1,
+      "name": "Left Plate",
+      "rect": [0, 2, 3, 5],
+      "flipAxis": "Vertical",
+      "meterCost": 50,
+      "moveCost": 1
+    }
+  ],
+  "front": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ],
+    "obstacles": [
+      "........",
+      "..TTTT..",
+      "..TWWT..",
+      "..TTTT..",
+      "...TT...",
+      "........",
+      "........",
+      "........"
+    ],
+    "illustration": [
+      "..****..",
+      "..****..",
+      "..****..",
+      "..****..",
+      "...**...",
+      "........",
+      "........",
+      "........"
+    ]
+  },
+  "goals": [
+    { "type": "illustration" }
+  ]
+}

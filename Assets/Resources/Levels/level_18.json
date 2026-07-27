@@ -1,0 +1,61 @@
+{
+  "format": 1,
+  "id": 18,
+  "name": "Escape the Blank",
+  "book": "midnight-carnival",
+  "chapter": 4,
+  "width": 8,
+  "height": 8,
+  "moves": 30,
+  "designWinRate": 0.78,
+  "dioramaPiece": "moon-theatre-stage",
+  "tutorial": "blank-tide",
+  "intro": [
+    "THE BLANK: You are making it worse. A story with an ending can be disappointing.",
+    "MIRA: And a story with no ending is just paper.",
+    "THE BLANK: Paper is safe."
+  ],
+  "outro": ["QUILL: It talks a lot for something that wants silence."],
+  "spawnTables": [
+    { "colors": ["Crimson", "Azure", "Meadow", "Amber", "Violet"] }
+  ],
+  "folds": [
+    {
+      "id": 1,
+      "name": "Stage Curtain",
+      "rect": [0, 0, 8, 3],
+      "flipAxis": "Horizontal",
+      "meterCost": 50,
+      "moveCost": 1
+    }
+  ],
+  "front": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ],
+    "obstacles": [
+      "...XX...",
+      "..X..X..",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ]
+  },
+  "modifiers": [
+    { "type": "blank-tide", "period": 2, "count": 3, "startTurn": 2 }
+  ],
+  "goals": [
+    { "type": "blank", "count": 30 },
+    { "type": "collect", "color": "Amber", "count": 36 }
+  ]
+}

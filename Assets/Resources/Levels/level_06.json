@@ -1,0 +1,68 @@
+{
+  "format": 1,
+  "id": 6,
+  "name": "Behind the Ticket Stub",
+  "book": "midnight-carnival",
+  "chapter": 1,
+  "width": 8,
+  "height": 8,
+  "moves": 26,
+  "designWinRate": 0.85,
+  "dioramaPiece": "moon-lantern",
+  "tutorial": "fold-back-surface",
+  "intro": [
+    "MIRA: The moonlight is not gone. It is printed on the other side.",
+    "QUILL: So we live over there for a while."
+  ],
+  "spawnTables": [
+    { "group": 0, "colors": ["Crimson", "Meadow", "Amber", "Violet"] },
+    { "group": 1, "colors": ["Azure", "Violet", "Meadow"], "weights": [6, 2, 2] }
+  ],
+  "folds": [
+    {
+      "id": 1,
+      "name": "Stub",
+      "rect": [4, 0, 4, 8],
+      "flipAxis": "Vertical",
+      "meterCost": 55,
+      "moveCost": 0
+    }
+  ],
+  "front": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ]
+  },
+  "back": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ],
+    "spawnGroups": [
+      "00001111",
+      "00001111",
+      "00001111",
+      "00001111",
+      "00001111",
+      "00001111",
+      "00001111",
+      "00001111"
+    ]
+  },
+  "goals": [
+    { "type": "collect", "color": "Azure", "count": 34 }
+  ]
+}

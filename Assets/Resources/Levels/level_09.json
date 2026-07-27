@@ -1,0 +1,71 @@
+{
+  "format": 1,
+  "id": 9,
+  "name": "The Carousel Tilts",
+  "book": "midnight-carnival",
+  "chapter": 2,
+  "width": 8,
+  "height": 8,
+  "moves": 30,
+  "designWinRate": 0.6,
+  "dioramaPiece": "carousel-horses",
+  "tutorial": "fold-gravity",
+  "intro": [
+    "QUILL: Careful. On the far side of that panel, down is sideways.",
+    "MIRA: How is that even —",
+    "QUILL: It is a carousel, Mira."
+  ],
+  "spawnTables": [
+    { "colors": ["Crimson", "Azure", "Meadow", "Amber", "Violet"] }
+  ],
+  "folds": [
+    {
+      "id": 1,
+      "name": "Tilting Panel",
+      "rect": [5, 0, 3, 8],
+      "flipAxis": "Vertical",
+      "frontGravity": "Down",
+      "backGravity": "Right",
+      "meterCost": 60,
+      "moveCost": 1
+    }
+  ],
+  "front": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ]
+  },
+  "back": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ],
+    "obstacles": [
+      "........",
+      "......W.",
+      "......TT",
+      "........",
+      "......TT",
+      "......W.",
+      "........",
+      "........"
+    ]
+  },
+  "goals": [
+    { "type": "obstacle", "obstacle": "TornPage" },
+    { "type": "obstacle", "obstacle": "WaxSeal" }
+  ]
+}

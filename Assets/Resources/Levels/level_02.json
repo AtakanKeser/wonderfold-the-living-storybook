@@ -1,0 +1,35 @@
+{
+  "format": 1,
+  "id": 2,
+  "name": "Ticket Booth Blues",
+  "book": "midnight-carnival",
+  "chapter": 1,
+  "width": 8,
+  "height": 8,
+  "moves": 26,
+  "designWinRate": 0.72,
+  "dioramaPiece": "ticket-booth",
+  "intro": [
+    "FOLIO: The booth still sells tickets. To a carnival that no longer happens.",
+    "QUILL: Cheerful."
+  ],
+  "spawnTables": [
+    { "colors": ["Crimson", "Azure", "Meadow", "Amber", "Violet"] }
+  ],
+  "front": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "..####..",
+      "..####..",
+      "........",
+      "........",
+      "........"
+    ]
+  },
+  "goals": [
+    { "type": "collect", "color": "Amber", "count": 23 },
+    { "type": "collect", "color": "Azure", "count": 20 }
+  ]
+}

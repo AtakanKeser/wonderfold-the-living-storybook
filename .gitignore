@@ -1,0 +1,44 @@
+## Unity
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+/Assets/AssetStoreTools*
+/Assets/Plugins/Editor/JetBrains*
+.vs/
+.gradle/
+ExportedObj/
+*.apk
+*.aab
+*.unitypackage
+crashlytics-build.properties
+sysinfo.txt
+
+## IDE
+.idea/
+*.csproj
+*.unityproj
+*.sln.DotSettings.user
+!Tools/**/*.csproj
+!Tools/Wonderfold.sln
+
+## dotnet
+Tools/**/bin/
+Tools/**/obj/
+
+## OS
+.DS_Store
+
+## Tool output
+unity-compile.log
+unity-tests.log
+unity-tests.xml
+build_log.txt
+
+# Local continuation notes: intentionally not part of the public repository.
+HANDOFF.md

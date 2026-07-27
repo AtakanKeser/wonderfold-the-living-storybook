@@ -1,0 +1,70 @@
+{
+  "format": 1,
+  "id": 10,
+  "name": "The Story Seam",
+  "book": "midnight-carnival",
+  "chapter": 2,
+  "width": 8,
+  "height": 8,
+  "moves": 28,
+  "designWinRate": 0.62,
+  "dioramaPiece": "mirror-maze-entrance",
+  "tutorial": "golden-stitch",
+  "intro": [
+    "FOLIO: Where two faces of a page meet, the paper remembers being one sheet.",
+    "MIRA: So if I match straight across the crease...",
+    "FOLIO: The page sews itself shut. Gold thread. Very showy."
+  ],
+  "outro": ["MIRA: I want to do that again."],
+  "spawnTables": [
+    { "colors": ["Crimson", "Azure", "Meadow", "Amber", "Violet"] }
+  ],
+  "folds": [
+    {
+      "id": 1,
+      "name": "Mirror Strip",
+      "rect": [3, 0, 2, 8],
+      "flipAxis": "Vertical",
+      "meterCost": 45,
+      "moveCost": 0
+    }
+  ],
+  "front": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ]
+  },
+  "back": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ],
+    "obstacles": [
+      "........",
+      "...WW...",
+      "........",
+      "........",
+      "........",
+      "........",
+      "...WW...",
+      "........"
+    ]
+  },
+  "goals": [
+    { "type": "seam", "count": 6 },
+    { "type": "obstacle", "obstacle": "WaxSeal" }
+  ]
+}

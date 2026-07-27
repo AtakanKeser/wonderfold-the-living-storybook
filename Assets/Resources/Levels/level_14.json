@@ -1,0 +1,89 @@
+{
+  "format": 1,
+  "id": 14,
+  "name": "Paper Chains",
+  "book": "midnight-carnival",
+  "chapter": 3,
+  "width": 8,
+  "height": 8,
+  "moves": 36,
+  "designWinRate": 0.5,
+  "dioramaPiece": "ghost-train-carriage",
+  "tutorial": "paper-chain",
+  "intro": [
+    "QUILL: A chain only lets go when every link has been cut. All of them. At once.",
+    "MIRA: That is not how chains work.",
+    "QUILL: It is how paper chains sulk."
+  ],
+  "spawnTables": [
+    { "colors": ["Crimson", "Azure", "Meadow", "Amber", "Violet"] }
+  ],
+  "folds": [
+    {
+      "id": 1,
+      "name": "Carriage Roof",
+      "rect": [0, 4, 8, 4],
+      "flipAxis": "Horizontal",
+      "meterCost": 55,
+      "moveCost": 1
+    }
+  ],
+  "front": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ],
+    "obstacles": [
+      "........",
+      ".CCC....",
+      "........",
+      "....CCC.",
+      "........",
+      ".CCC....",
+      "........",
+      "........"
+    ],
+    "groups": [
+      "00000000",
+      "01110000",
+      "00000000",
+      "00002220",
+      "00000000",
+      "03330000",
+      "00000000",
+      "00000000"
+    ]
+  },
+  "back": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ],
+    "obstacles": [
+      "........",
+      "..T..T..",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ]
+  },
+  "goals": [
+    { "type": "obstacle", "obstacle": "PaperChain" },
+    { "type": "obstacle", "obstacle": "TornPage" }
+  ]
+}

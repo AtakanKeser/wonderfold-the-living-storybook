@@ -1,0 +1,79 @@
+{
+  "format": 1,
+  "id": 19,
+  "name": "Reconnect the Story",
+  "book": "midnight-carnival",
+  "chapter": 4,
+  "width": 8,
+  "height": 8,
+  "moves": 34,
+  "designWinRate": 0.45,
+  "dioramaPiece": "moon-theatre-lights",
+  "tutorial": "reconnect",
+  "intro": [
+    "LUNA: I remember the beginning. Someone else is holding the end.",
+    "MIRA: They are on the other side of your own page, Luna.",
+    "LUNA: Ah. That would explain the loneliness."
+  ],
+  "spawnTables": [
+    { "colors": ["Crimson", "Azure", "Meadow", "Amber", "Violet"] }
+  ],
+  "folds": [
+    {
+      "id": 1,
+      "name": "Luna's Page",
+      "rect": [1, 1, 6, 6],
+      "flipAxis": "Vertical",
+      "meterCost": 45,
+      "moveCost": 1
+    }
+  ],
+  "front": {
+    "tiles": [
+      "........",
+      ".r....b.",
+      "........",
+      "..g..y..",
+      "........",
+      ".p....r.",
+      "........",
+      "........"
+    ],
+    "storyLinks": [
+      "00000000",
+      "01000020",
+      "00000000",
+      "00000000",
+      "00000000",
+      "03000040",
+      "00000000",
+      "00000000"
+    ]
+  },
+  "back": {
+    "tiles": [
+      "........",
+      ".r....b.",
+      "........",
+      "..g..y..",
+      "........",
+      ".p....r.",
+      "........",
+      "........"
+    ],
+    "storyLinks": [
+      "00000000",
+      "01000020",
+      "00000000",
+      "00000000",
+      "00000000",
+      "03000040",
+      "00000000",
+      "00000000"
+    ]
+  },
+  "goals": [
+    { "type": "reconnect" },
+    { "type": "seam", "count": 3 }
+  ]
+}

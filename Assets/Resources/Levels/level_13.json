@@ -1,0 +1,89 @@
+{
+  "format": 1,
+  "id": 13,
+  "name": "The Locked Leaf",
+  "book": "midnight-carnival",
+  "chapter": 3,
+  "width": 8,
+  "height": 8,
+  "moves": 36,
+  "designWinRate": 0.5,
+  "dioramaPiece": "ghost-train-doors",
+  "tutorial": "fold-lock",
+  "intro": [
+    "MIRA: It will not turn.",
+    "FOLIO: Of course not. Someone has locked the page shut. Find the clasps."
+  ],
+  "spawnTables": [
+    { "colors": ["Crimson", "Azure", "Meadow", "Amber", "Violet"] }
+  ],
+  "folds": [
+    {
+      "id": 1,
+      "name": "Train Door",
+      "rect": [4, 0, 4, 8],
+      "flipAxis": "Vertical",
+      "lockGroup": 1,
+      "meterCost": 50,
+      "moveCost": 1
+    }
+  ],
+  "front": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ],
+    "obstacles": [
+      "........",
+      ".L....L.",
+      "........",
+      "........",
+      "........",
+      "........",
+      ".L....L.",
+      "........"
+    ],
+    "groups": [
+      "00000000",
+      "01000010",
+      "00000000",
+      "00000000",
+      "00000000",
+      "00000000",
+      "01000010",
+      "00000000"
+    ]
+  },
+  "back": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ],
+    "obstacles": [
+      "........",
+      ".....TT.",
+      "....T..T",
+      "........",
+      "........",
+      "....T..T",
+      ".....TT.",
+      "........"
+    ]
+  },
+  "goals": [
+    { "type": "obstacle", "obstacle": "FoldLock" },
+    { "type": "obstacle", "obstacle": "TornPage" }
+  ]
+}

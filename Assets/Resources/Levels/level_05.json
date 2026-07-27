@@ -1,0 +1,70 @@
+{
+  "format": 1,
+  "id": 5,
+  "name": "The First Crease",
+  "book": "midnight-carnival",
+  "chapter": 1,
+  "width": 8,
+  "height": 8,
+  "moves": 26,
+  "designWinRate": 0.85,
+  "foldMeterMax": 100,
+  "dioramaPiece": "ticket-turnstile",
+  "tutorial": "fold-basics",
+  "intro": [
+    "MIRA: There is something printed on the back of this page.",
+    "FOLIO: Then turn it over, child. It is a book. That is what books are for."
+  ],
+  "outro": ["QUILL: I felt that in my folds."],
+  "spawnTables": [
+    { "colors": ["Crimson", "Azure", "Meadow", "Amber", "Violet"] }
+  ],
+  "folds": [
+    {
+      "id": 1,
+      "name": "Right Leaf",
+      "rect": [5, 0, 3, 8],
+      "flipAxis": "Vertical",
+      "meterCost": 60,
+      "moveCost": 0
+    }
+  ],
+  "front": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ]
+  },
+  "back": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ],
+    "obstacles": [
+      "........",
+      ".....TT.",
+      ".....T.T",
+      "........",
+      "........",
+      ".....T.T",
+      ".....TT.",
+      "........"
+    ]
+  },
+  "goals": [
+    { "type": "fold", "count": 2 },
+    { "type": "obstacle", "obstacle": "TornPage" }
+  ]
+}

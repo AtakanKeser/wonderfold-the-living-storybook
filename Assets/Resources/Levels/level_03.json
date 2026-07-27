@@ -1,0 +1,45 @@
+{
+  "format": 1,
+  "id": 3,
+  "name": "The Torn Banner",
+  "book": "midnight-carnival",
+  "chapter": 1,
+  "width": 8,
+  "height": 8,
+  "moves": 16,
+  "designWinRate": 0.95,
+  "dioramaPiece": "welcome-banner",
+  "tutorial": "torn-page",
+  "intro": [
+    "MIRA: The welcome banner tore itself in half rather than say the word.",
+    "QUILL: Match beside a tear and it mends. Twice, mind you."
+  ],
+  "spawnTables": [
+    { "colors": ["Crimson", "Azure", "Meadow", "Amber", "Violet"] }
+  ],
+  "front": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ],
+    "obstacles": [
+      "........",
+      "........",
+      "...TT...",
+      "..T..T..",
+      "..T..T..",
+      "...TT...",
+      "........",
+      "........"
+    ]
+  },
+  "goals": [
+    { "type": "obstacle", "obstacle": "TornPage" }
+  ]
+}

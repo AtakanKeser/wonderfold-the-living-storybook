@@ -1,0 +1,77 @@
+{
+  "format": 1,
+  "id": 15,
+  "name": "Quill's Long Walk",
+  "book": "midnight-carnival",
+  "chapter": 3,
+  "width": 8,
+  "height": 8,
+  "moves": 32,
+  "designWinRate": 0.9,
+  "dioramaPiece": "ferris-wheel-spokes",
+  "tutorial": "guide-walker",
+  "intro": [
+    "QUILL: I will walk it. You clear it.",
+    "MIRA: And if I fold the page while you are standing on it?",
+    "QUILL: Then I am standing on nothing, Mira, which is a very short story."
+  ],
+  "spawnTables": [
+    { "colors": ["Crimson", "Azure", "Meadow", "Amber", "Violet"] }
+  ],
+  "folds": [
+    {
+      "id": 1,
+      "name": "Spoke Panel",
+      "rect": [3, 0, 2, 8],
+      "flipAxis": "Vertical",
+      "meterCost": 55,
+      "moveCost": 1
+    }
+  ],
+  "front": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ],
+    "obstacles": [
+      "........",
+      "..TTT...",
+      "...T.T..",
+      "..T.WT..",
+      "...TT...",
+      "..T.T...",
+      "...TT...",
+      "........"
+    ]
+  },
+  "back": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ]
+  },
+  "modifiers": [
+    {
+      "type": "walker",
+      "walkers": [
+        { "id": 1, "at": [0, 0], "target": [7, 7], "side": "Front", "steps": 2, "character": "quill" }
+      ]
+    }
+  ],
+  "goals": [
+    { "type": "walker", "walker": 1 },
+    { "type": "collect", "color": "Violet", "count": 24 }
+  ]
+}

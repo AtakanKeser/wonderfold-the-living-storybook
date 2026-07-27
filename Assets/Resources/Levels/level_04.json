@@ -1,0 +1,44 @@
+{
+  "format": 1,
+  "id": 4,
+  "name": "The Paper Queue",
+  "book": "midnight-carnival",
+  "chapter": 1,
+  "width": 8,
+  "height": 8,
+  "moves": 26,
+  "designWinRate": 0.8,
+  "dioramaPiece": "queue-rails",
+  "intro": [
+    "QUILL: There is still a queue. Nobody in it has a face yet."
+  ],
+  "spawnTables": [
+    { "colors": ["Crimson", "Azure", "Meadow", "Amber", "Violet"] }
+  ],
+  "front": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ],
+    "obstacles": [
+      "........",
+      ".T....T.",
+      ".T....T.",
+      ".T....T.",
+      ".T....T.",
+      ".T....T.",
+      ".T....T.",
+      "........"
+    ]
+  },
+  "goals": [
+    { "type": "obstacle", "obstacle": "TornPage" },
+    { "type": "collect", "color": "Violet", "count": 30 }
+  ]
+}

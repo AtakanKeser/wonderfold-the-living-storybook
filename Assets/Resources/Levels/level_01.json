@@ -1,0 +1,37 @@
+{
+  "format": 1,
+  "id": 1,
+  "name": "The Gate Refuses",
+  "book": "midnight-carnival",
+  "chapter": 1,
+  "width": 8,
+  "height": 8,
+  "moves": 18,
+  "designWinRate": 0.97,
+  "dioramaPiece": "carnival-gate",
+  "tutorial": "basic-match",
+  "intro": [
+    "MIRA: The lanterns are out. All of them.",
+    "QUILL: And the gate has forgotten how to open.",
+    "MIRA: Then we remind it. Three of a kind, like Folio taught us."
+  ],
+  "outro": ["QUILL: One lantern. It is a start."],
+  "spawnTables": [
+    { "colors": ["Crimson", "Azure", "Meadow", "Amber"], "weights": [3, 3, 3, 4] }
+  ],
+  "front": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ]
+  },
+  "goals": [
+    { "type": "collect", "color": "Amber", "count": 40 }
+  ]
+}

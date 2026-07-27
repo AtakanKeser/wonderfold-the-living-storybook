@@ -1,0 +1,46 @@
+{
+  "format": 1,
+  "id": 7,
+  "name": "Wax and Wonder",
+  "book": "midnight-carnival",
+  "chapter": 2,
+  "width": 8,
+  "height": 8,
+  "moves": 28,
+  "designWinRate": 0.72,
+  "dioramaPiece": "carousel-base",
+  "tutorial": "wax-seal",
+  "intro": [
+    "FOLIO: Sealed by the archive itself. Nothing so vulgar as a match will open these.",
+    "QUILL: He means: build something that goes bang."
+  ],
+  "spawnTables": [
+    { "colors": ["Crimson", "Azure", "Meadow", "Amber", "Violet"] }
+  ],
+  "front": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ],
+    "obstacles": [
+      "........",
+      ".W....W.",
+      "..T..T..",
+      "........",
+      "........",
+      "..T..T..",
+      ".W....W.",
+      "........"
+    ]
+  },
+  "goals": [
+    { "type": "obstacle", "obstacle": "WaxSeal" },
+    { "type": "collect", "color": "Crimson", "count": 26 }
+  ]
+}

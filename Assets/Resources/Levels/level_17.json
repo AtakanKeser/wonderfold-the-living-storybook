@@ -1,0 +1,82 @@
+{
+  "format": 1,
+  "id": 17,
+  "name": "Misprinted Halls",
+  "book": "midnight-carnival",
+  "chapter": 3,
+  "width": 8,
+  "height": 8,
+  "moves": 34,
+  "designWinRate": 0.45,
+  "dioramaPiece": "hall-of-mirrors",
+  "tutorial": "portal",
+  "intro": [
+    "FOLIO: A misprint. The page was bound facing itself.",
+    "QUILL: Things fall in here and come out over there. I have tested it. Twice. On purpose the second time."
+  ],
+  "spawnTables": [
+    { "colors": ["Crimson", "Azure", "Meadow", "Amber", "Violet"] }
+  ],
+  "folds": [
+    {
+      "id": 1,
+      "name": "Misprint",
+      "rect": [2, 0, 4, 8],
+      "flipAxis": "Vertical",
+      "meterCost": 55,
+      "moveCost": 1
+    }
+  ],
+  "front": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ],
+    "obstacles": [
+      "........",
+      "........",
+      "..W..W..",
+      "........",
+      "........",
+      "..W..W..",
+      "........",
+      "........"
+    ]
+  },
+  "back": {
+    "tiles": [
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........",
+      "........"
+    ],
+    "obstacles": [
+      "........",
+      "...TT...",
+      "..T..T..",
+      "........",
+      "........",
+      "..T..T..",
+      "...TT...",
+      "........"
+    ]
+  },
+  "portals": [
+    { "from": [2, 0], "fromSide": "Front", "to": [5, 7], "toSide": "Back" },
+    { "from": [5, 0], "fromSide": "Front", "to": [2, 7], "toSide": "Back" }
+  ],
+  "goals": [
+    { "type": "obstacle", "obstacle": "TornPage" },
+    { "type": "obstacle", "obstacle": "WaxSeal" }
+  ]
+}
