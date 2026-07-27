@@ -24,6 +24,7 @@ namespace Wonderfold.Game.Meta
         private Transform _visual;
         private SpriteRenderer _body;
         private SpriteRenderer _aura;
+        private SpriteRenderer _contactShadow;
         private Vector3 _basePosition;
         private float _baseScale;
         private float _phase;
@@ -31,6 +32,8 @@ namespace Wonderfold.Game.Meta
         private float _reactionEndsAt = float.NegativeInfinity;
         private float _reactionIntensity;
         private Vector3 _reactionFocus;
+        private int _restingSortingOrder;
+        private bool _bringForwardOnReaction;
         private Role _role;
         private bool _initialised;
 
@@ -76,13 +79,13 @@ namespace Wonderfold.Game.Meta
         }
 
         /// <summary>Updates a role's scale and render layer when the board changes shape.</summary>
-        public void SetStageAppearance(float scale, int sortingOrder)
+        public void SetStageAppearance(float scale, int sortingOrder, bool bringForwardOnReaction = false)
         {
             _baseScale = scale;
-            if (_body != null) _body.sortingOrder = sortingOrder;
-            if (_aura != null) _aura.sortingOrder = sortingOrder - 1;
-            for (int i = 0; i < _sparkles.Count; i++)
-                if (_sparkles[i] != null) _sparkles[i].sortingOrder = sortingOrder + 1;
+            _restingSortingOrder = sortingOrder;
+            _bringForwardOnReaction = bringForwardOnReaction;
+            ApplySorting(sortingOrder);
+            UpdateContactShadow(0f);
         }
 
         public void SetStageVisible(bool visible)
@@ -96,6 +99,7 @@ namespace Wonderfold.Game.Meta
             _role = role;
             _basePosition = transform.localPosition;
             _baseScale = scale;
+            _restingSortingOrder = sortingOrder;
 
             int hash = 17;
             for (int i = 0; i < name.Length; i++) hash = hash * 31 + name[i];
@@ -107,6 +111,13 @@ namespace Wonderfold.Game.Meta
             _aura = auraObject.GetComponent<SpriteRenderer>();
             _aura.sprite = ProceduralArt.Disc();
             _aura.sortingOrder = sortingOrder - 1;
+
+            var shadowObject = new GameObject("Page Contact Shadow", typeof(SpriteRenderer));
+            shadowObject.transform.SetParent(transform, false);
+            _contactShadow = shadowObject.GetComponent<SpriteRenderer>();
+            _contactShadow.sprite = ProceduralArt.Disc();
+            _contactShadow.color = new Color(0.02f, 0.01f, 0.07f, 0.26f);
+            _contactShadow.sortingOrder = sortingOrder - 2;
 
             _visual = new GameObject("Visual").transform;
             _visual.SetParent(transform, false);
@@ -123,6 +134,7 @@ namespace Wonderfold.Game.Meta
             }
 
             _initialised = true;
+            UpdateContactShadow(0f);
         }
 
         private static SpriteRenderer AddSprite(Transform parent, string name, Sprite sprite, int sortingOrder)
@@ -133,6 +145,25 @@ namespace Wonderfold.Game.Meta
             renderer.sprite = sprite;
             renderer.sortingOrder = sortingOrder;
             return renderer;
+        }
+
+        private void ApplySorting(int bodyOrder)
+        {
+            if (_body != null) _body.sortingOrder = bodyOrder;
+            if (_aura != null) _aura.sortingOrder = bodyOrder - 1;
+            if (_contactShadow != null) _contactShadow.sortingOrder = bodyOrder - 2;
+            for (int i = 0; i < _sparkles.Count; i++)
+                if (_sparkles[i] != null) _sparkles[i].sortingOrder = bodyOrder + 1;
+        }
+
+        /// <summary>A soft oval at the character's feet makes a cutout read as standing on the paper.</summary>
+        private void UpdateContactShadow(float reaction)
+        {
+            if (_contactShadow == null) return;
+            float width = _baseScale * (_role == Role.Quill ? 0.36f : 0.43f);
+            _contactShadow.transform.localPosition = new Vector3(0f, -_baseScale * 0.36f, 0.01f);
+            _contactShadow.transform.localScale = new Vector3(width, width * 0.20f * (1f - reaction * 0.18f), 1f);
+            _contactShadow.color = new Color(0.02f, 0.01f, 0.07f, 0.22f + reaction * 0.08f);
         }
 
         private void Update()
@@ -160,6 +191,10 @@ namespace Wonderfold.Game.Meta
             transform.localPosition = _basePosition + new Vector3(drift, bob, 0f) + response;
             transform.localRotation = Quaternion.Euler(0f, 0f, tilt + reactionWave * 2.5f);
             _visual.localScale = Vector3.one * _baseScale * (1f + breathe + reactionWave * 0.06f + reaction * 0.055f);
+            ApplySorting(_bringForwardOnReaction && reaction > 0.01f
+                ? _restingSortingOrder + 20
+                : _restingSortingOrder);
+            UpdateContactShadow(reaction);
 
             Color glow = GlowColour();
             _aura.color = new Color(glow.r, glow.g, glow.b, aura + reaction * 0.22f);

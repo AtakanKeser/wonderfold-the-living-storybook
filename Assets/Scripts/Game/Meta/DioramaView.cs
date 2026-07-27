@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Wonderfold.Core.Board;
 using Wonderfold.Core.Events;
 using Wonderfold.Core.Level;
 using Wonderfold.Core.Primitives;
@@ -31,6 +32,8 @@ namespace Wonderfold.Game.Meta
         private Camera _camera;
         private Transform _stage;
         private SpriteRenderer _background;
+        private SpriteRenderer _quillStoryWindow;
+        private SpriteRenderer _miraPageTab;
         private DioramaCharacterActor _mira;
         private DioramaCharacterActor _quill;
         private DioramaCharacterActor _folio;
@@ -64,6 +67,11 @@ namespace Wonderfold.Game.Meta
                 renderer.color = new Color(1f, 1f, 1f, 0.62f);
                 view._background = renderer;
             }
+
+            view._quillStoryWindow = CreateStageAnchor(view._stage, "Quill Story Window", 5,
+                new Color(0.06f, 0.04f, 0.14f, 0.34f));
+            view._miraPageTab = CreateStageAnchor(view._stage, "Mira Page Tab", 9,
+                new Color(0.97f, 0.83f, 0.49f, 0.88f));
             
             view._mira = view.SpawnCharacter("Mira", DioramaCharacterActor.Role.Mira, new Vector3(-6.6f, -3.4f, 0f),
                 new Color(0.96f, 0.43f, 0.56f), 24, 4.5f);
@@ -81,23 +89,36 @@ namespace Wonderfold.Game.Meta
         }
 
         /// <summary>Aligns scene dressing with the board's reserved play area after a display change.</summary>
-        public void ApplyBoardLayout(BoardLayout layout)
+        public void ApplyBoardLayout(BoardLayout layout, BoardModel board = null)
         {
             if (layout == null) return;
             bool landscape = _camera != null && _camera.aspect >= 1.15f;
             var bounds = layout.WorldBounds;
             float cell = layout.CellSize;
 
-            // Gameplay is played with two readable protagonists rather than a small row of detached
-            // figurines. Mira owns the lower page edge and Quill lives on the board, making every
-            // reaction feel like it belongs to the puzzle rather than to its wallpaper.
+            // Mira is attached to a physical page tab rather than hovering at the bottom of the frame.
+            // Her silhouette can overlap the board edge a little, but never obscures a broad block of tiles.
+            Vector3 miraPosition = new Vector3(bounds.min.x - cell * 0.95f, bounds.min.y + cell * 1.18f, 0f);
+            SetAnchor(_miraPageTab, new Vector3(bounds.min.x - cell * 0.74f, bounds.min.y + cell * 0.18f, 0f),
+                new Vector3(cell * 1.55f, cell * 0.28f, 1f), true);
             _mira?.SetStageVisible(true);
-            _mira?.SetStageAppearance(landscape ? 4.8f : 4.35f, 24);
-            _mira?.SetStagePosition(new Vector3(bounds.min.x - cell * 0.22f, bounds.min.y + cell * 0.78f, 0f));
+            _mira?.SetStageAppearance(landscape ? 3.65f : 3.35f, 24);
+            _mira?.SetStagePosition(miraPosition);
 
+            // A deliberate void in the page becomes Quill's story window. He rests behind the board's
+            // paper rim, then rises above it only while travelling to a match or explosion.
+            bool hasStoryWindow = TryFindVoidPocket(board, layout, out Vector3 quillPosition, out Vector2 pocketSize);
+            if (!hasStoryWindow)
+            {
+                quillPosition = new Vector3(bounds.min.x + cell * 0.82f, bounds.max.y + cell * 0.30f, 0f);
+                pocketSize = Vector2.one;
+            }
+            SetAnchor(_quillStoryWindow, quillPosition, new Vector3(
+                Mathf.Max(cell * 1.10f, pocketSize.x * cell * 0.90f),
+                Mathf.Max(cell * 0.80f, pocketSize.y * cell * 0.72f), 1f), hasStoryWindow);
             _quill?.SetStageVisible(true);
-            _quill?.SetStageAppearance(landscape ? 4.55f : 4.15f, 26);
-            _quill?.SetStagePosition(new Vector3(bounds.center.x + cell * 0.12f, bounds.center.y + cell * 0.10f, 0f));
+            _quill?.SetStageAppearance(landscape ? 2.95f : 2.70f, hasStoryWindow ? 8 : 24, hasStoryWindow);
+            _quill?.SetStagePosition(quillPosition + new Vector3(0f, hasStoryWindow ? -cell * 0.08f : 0f, 0f));
 
             // Folio and Luna remain part of the restored diorama and dialogue, but keeping them off
             // the moment-to-moment board prevents the gameplay frame from becoming visual clutter.
@@ -106,6 +127,55 @@ namespace Wonderfold.Game.Meta
 
             _blank?.SetStageAppearance(landscape ? 3.65f : 3.30f, 18);
             _blank?.SetStagePosition(new Vector3(bounds.max.x - cell * 0.40f, bounds.max.y - cell * 0.72f, 0f));
+        }
+
+        private static SpriteRenderer CreateStageAnchor(Transform parent, string name, int sortingOrder, Color colour)
+        {
+            var go = new GameObject(name, typeof(SpriteRenderer));
+            go.transform.SetParent(parent, false);
+            var renderer = go.GetComponent<SpriteRenderer>();
+            renderer.sprite = ProceduralArt.RoundedSquare(0.22f, 0.02f);
+            renderer.color = colour;
+            renderer.sortingOrder = sortingOrder;
+            renderer.enabled = false;
+            return renderer;
+        }
+
+        private static void SetAnchor(SpriteRenderer anchor, Vector3 position, Vector3 scale, bool visible)
+        {
+            if (anchor == null) return;
+            anchor.transform.localPosition = position;
+            anchor.transform.localScale = scale;
+            anchor.enabled = visible;
+        }
+
+        private static bool TryFindVoidPocket(BoardModel board, BoardLayout layout, out Vector3 centre, out Vector2 size)
+        {
+            centre = layout.WorldBounds.center;
+            size = Vector2.one;
+            if (board == null) return false;
+
+            int count = 0;
+            int minX = layout.Width;
+            int maxX = -1;
+            int minY = layout.Height;
+            int maxY = -1;
+            foreach (var coord in board.AllCoords())
+            {
+                var cell = board.ActiveCell(coord);
+                if (cell == null || !cell.IsVoid) continue;
+                count++;
+                minX = Mathf.Min(minX, coord.X);
+                maxX = Mathf.Max(maxX, coord.X);
+                minY = Mathf.Min(minY, coord.Y);
+                maxY = Mathf.Max(maxY, coord.Y);
+            }
+
+            if (count < 2) return false;
+            centre = layout.Origin + new Vector3((minX + maxX) * 0.5f * layout.CellSize,
+                (minY + maxY) * 0.5f * layout.CellSize, 0f);
+            size = new Vector2(maxX - minX + 1, maxY - minY + 1);
+            return true;
         }
 
         /// <summary>Converts descriptive board events into character performances at the affected cell.</summary>

@@ -142,7 +142,7 @@ namespace Wonderfold.Game.Bootstrap
             else _boardView.Relayout(layout);
 
             _input.Bind(_camera, layout, _session.Board);
-            _diorama?.ApplyBoardLayout(layout);
+            _diorama?.ApplyBoardLayout(layout, _session.Board);
             _layoutScreenWidth = Screen.width;
             _layoutScreenHeight = Screen.height;
         }
