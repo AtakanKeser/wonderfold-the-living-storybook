@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using Wonderfold.Core.Board;
 using Wonderfold.Core.Events;
 using Wonderfold.Core.Level;
@@ -71,7 +72,7 @@ namespace Wonderfold.Game.Meta
             view._quillStoryWindow = CreateStageAnchor(view._stage, "Quill Story Window", 5,
                 new Color(0.06f, 0.04f, 0.14f, 0.34f));
             view._miraPageTab = CreateStageAnchor(view._stage, "Mira Page Tab", 9,
-                new Color(0.97f, 0.83f, 0.49f, 0.88f));
+                new Color(0.31f, 0.17f, 0.10f, 0.78f));
             
             view._mira = view.SpawnCharacter("Mira", DioramaCharacterActor.Role.Mira, new Vector3(-6.6f, -3.4f, 0f),
                 new Color(0.96f, 0.43f, 0.56f), 24, 4.5f);
@@ -102,7 +103,7 @@ namespace Wonderfold.Game.Meta
             SetAnchor(_miraPageTab, new Vector3(bounds.min.x - cell * 0.74f, bounds.min.y + cell * 0.18f, 0f),
                 new Vector3(cell * 1.55f, cell * 0.28f, 1f), true);
             _mira?.SetStageVisible(true);
-            _mira?.SetStageAppearance(landscape ? 3.65f : 3.35f, 24);
+            _mira?.SetStageAppearance(landscape ? 3.90f : 3.55f, 24);
             _mira?.SetStagePosition(miraPosition);
 
             // A deliberate void in the page becomes Quill's story window. He rests behind the board's
@@ -229,8 +230,24 @@ namespace Wonderfold.Game.Meta
 
         private void Update()
         {
-            if (Screen.width == _backdropScreenWidth && Screen.height == _backdropScreenHeight) return;
-            FitBackdrop();
+            if (Screen.width != _backdropScreenWidth || Screen.height != _backdropScreenHeight)
+                FitBackdrop();
+            HandleCharacterTouch();
+        }
+
+        private void HandleCharacterTouch()
+        {
+            if (!Input.GetMouseButtonDown(0) || _camera == null) return;
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+
+            var screen = Input.mousePosition;
+            screen.z = Mathf.Abs(_camera.transform.position.z);
+            var world = _camera.ScreenToWorldPoint(screen);
+
+            // Quill is checked first because he may be in the page window. Mira's stage perch lies
+            // outside the tile grid, so neither interaction can spend a move or steal a board gesture.
+            if (_quill != null && _quill.TryReactToTouch(world)) return;
+            _mira?.TryReactToTouch(world);
         }
 
         private void FitBackdrop()

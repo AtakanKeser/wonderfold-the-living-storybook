@@ -37,7 +37,7 @@ namespace Wonderfold.Game.Audio
         private void Initialise()
         {
             if (_music == null) Awake();
-            _music.clip = ComposeMidnightCarnivalLoop();
+            _music.clip = MidnightCarnivalComposer.Compose();
             _music.Play();
         }
 

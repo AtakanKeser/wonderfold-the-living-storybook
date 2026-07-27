@@ -9,6 +9,7 @@ namespace Wonderfold.Game.Meta
     /// production art to an Animator Controller or a prefab. The art can be replaced at any time;
     /// timing, reaction and idle language stay consistent across the cast.
     /// </summary>
+    [RequireComponent(typeof(AudioSource))]
     public sealed class DioramaCharacterActor : MonoBehaviour
     {
         public enum Role
@@ -25,6 +26,7 @@ namespace Wonderfold.Game.Meta
         private SpriteRenderer _body;
         private SpriteRenderer _aura;
         private SpriteRenderer _contactShadow;
+        private AudioSource _voice;
         private Vector3 _basePosition;
         private float _baseScale;
         private float _phase;
@@ -40,13 +42,22 @@ namespace Wonderfold.Game.Meta
         public static DioramaCharacterActor Create(Transform parent, string name, Role role, Vector3 position,
             Sprite authoredSprite, Color fallbackColour, int sortingOrder, float scale)
         {
-            var root = new GameObject(name).transform;
+            var root = new GameObject(name, typeof(AudioSource)).transform;
             root.SetParent(parent, false);
             root.localPosition = position;
 
             var actor = root.gameObject.AddComponent<DioramaCharacterActor>();
             actor.Initialise(name, role, authoredSprite, fallbackColour, sortingOrder, scale);
             return actor;
+        }
+
+        private void Awake()
+        {
+            _voice = GetComponent<AudioSource>();
+            _voice.playOnAwake = false;
+            _voice.spatialBlend = 0f;
+            _voice.volume = 0.20f;
+            _voice.priority = 96;
         }
 
         public void ReactToRestoration()
@@ -69,6 +80,17 @@ namespace Wonderfold.Game.Meta
             _reactionIntensity = Mathf.Clamp01(intensity);
             _reactionFocus = transform.parent != null ? transform.parent.InverseTransformPoint(worldFocus) : worldFocus;
             _reactionFocus.z = _basePosition.z;
+        }
+
+        /// <summary>Lets the player acknowledge a character without turning a touch into a board move.</summary>
+        public bool TryReactToTouch(Vector3 worldPoint)
+        {
+            if (!isActiveAndEnabled || _body == null || !_body.bounds.Contains(worldPoint)) return false;
+
+            ReactToGameplay(worldPoint, 0.90f);
+            PlayTouchVoice();
+            Handheld.Vibrate();
+            return true;
         }
 
         /// <summary>Moves the actor without breaking its procedural idle offset.</summary>
@@ -164,6 +186,37 @@ namespace Wonderfold.Game.Meta
             _contactShadow.transform.localPosition = new Vector3(0f, -_baseScale * 0.36f, 0.01f);
             _contactShadow.transform.localScale = new Vector3(width, width * 0.20f * (1f - reaction * 0.18f), 1f);
             _contactShadow.color = new Color(0.02f, 0.01f, 0.07f, 0.22f + reaction * 0.08f);
+        }
+
+        private void PlayTouchVoice()
+        {
+            if (_voice == null) return;
+
+            const int sampleRate = 22050;
+            const float duration = 0.34f;
+            int count = Mathf.CeilToInt(sampleRate * duration);
+            var data = new float[count];
+            float start = _role == Role.Quill ? 620f : 390f;
+            float end = _role == Role.Quill ? 1050f : 640f;
+            float phase = 0f;
+
+            for (int i = 0; i < count; i++)
+            {
+                float progress = i / (float)count;
+                float frequency = Mathf.Lerp(start, end, Mathf.SmoothStep(0f, 1f, progress));
+                phase += frequency / sampleRate;
+                float envelope = Mathf.Sin(Mathf.Clamp01(progress * 7f) * Mathf.PI * 0.5f)
+                    * Mathf.Pow(1f - progress, 1.45f);
+                float tone = Mathf.Sin(phase * Mathf.PI * 2f)
+                    + Mathf.Sin(phase * Mathf.PI * 4.04f) * 0.22f
+                    + Mathf.Sin(phase * Mathf.PI * 6.08f) * 0.08f;
+                data[i] = tone * envelope * 0.52f;
+            }
+
+            var clip = AudioClip.Create($"{_role} touch", count, 1, sampleRate, false);
+            clip.SetData(data, 0);
+            _voice.PlayOneShot(clip, _role == Role.Quill ? 0.32f : 0.26f);
+            Destroy(clip, duration + 0.1f);
         }
 
         private void Update()
