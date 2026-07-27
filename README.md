@@ -77,7 +77,6 @@ testing, and balancing deterministic.
 
 ## Documentation
 
-- [Handoff and continuing plan](HANDOFF.md) *(Turkish)*
 - [Architecture](Docs/ARCHITECTURE.md)
 - [Design notes](Docs/DESIGN.md)
 - [Level format](Docs/LEVEL_FORMAT.md)
@@ -86,4 +85,4 @@ testing, and balancing deterministic.
 
 The vertical slice is playable and validated. The highest-value follow-ups are Play Mode test coverage,
 mid-level save/resume, a repeatable gameplay capture, production-authored art and animation, and online
-live-event systems. See [HANDOFF.md](HANDOFF.md) for the current prioritised plan.
+live-event systems.
