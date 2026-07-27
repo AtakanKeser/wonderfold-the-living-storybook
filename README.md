@@ -55,6 +55,19 @@ During a level, drag adjacent tiles to swap them, tap boosters to activate them,
 when the meter is full. The tool pouch contains a targeted hammer and ribbon rocket; lives recharge over
 time. Dialogue and the carnival presentation are part of the playable flow.
 
+### Navigation and controls
+
+- **MENU** pauses the current page and clearly offers **RESUME PAGE**, **RESTART PAGE**, or
+  **CHAPTER MAP**.
+- Returning to the chapter map never discards an authored page: **RESUME PAGE _N_** continues its saved
+  replay state, including the board's current fold state.
+- The level-result card also includes **CHAPTER MAP**, alongside its contextual primary action
+  (continue, retry, or return to the archive).
+- Runtime buttons use one tactile treatment for hover, press, disabled, and shadow states. Labels state
+  the action directly: **USE HAMMER**, **USE ROCKET**, and **FOLD PAGE**.
+- Mira and Quill react to gameplay and can be tapped during play for a small character animation and
+  voice response.
+
 ## Verify or explore from the terminal
 
 ```bash
@@ -91,9 +104,9 @@ batch compilation pass.
 | Fold mechanic | Fold meter, fold locks, alternate surfaces, seam matches, Chain Fold upgrades |
 | Power-ups | Ribbon Rocket, Ink Bloom, Origami Bird, Prism Bookmark, Golden Stitch, and combinations |
 | Level variety | Eight obstacle types, eight goals, portals, walkers, Blank Tide, and a pop-up boss |
-| Meta flow | Chapter map, unlocks, lives, pre-level rocket, in-level tools, story choice, saved diorama progress |
+| Meta flow | Chapter map, unlocks, lives, pre-level rocket, in-level tools, pause/restart/map navigation, saved-page resume, story choice, saved diorama progress |
 | Living archive | Shared Daily Fold, bot-auditioned Endless Archive, Story Thread share/verify codes, streaks with a paid mend, daily and weekly errands, a coin economy that spends |
-| Presentation | Runtime UI, dialogue, paper-style sprites, authored visual overrides, reactive character staging, VFX, match/booster SFX, a Midnight Carnival music loop, haptics, camera pull-back |
+| Presentation | Runtime UI with tactile controls, dialogue, paper-style sprites, authored visual overrides, reactive character staging and touch reactions, VFX, match/booster SFX, authored Midnight Carnival music, haptics, camera pull-back |
 | Authoring | JSON level format, Unity Level Laboratory, CLI validation, and balance simulation |
 
 ## Architecture
@@ -113,6 +126,7 @@ from the command line before it ever reaches a player.
 - [Architecture](Docs/ARCHITECTURE.md)
 - [Design notes](Docs/DESIGN.md)
 - [Level format](Docs/LEVEL_FORMAT.md)
+- [Third-party notices](Docs/THIRD_PARTY_NOTICES.md)
 
 ## Next steps
 
