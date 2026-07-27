@@ -162,6 +162,73 @@ playing a few hands.
 
 ---
 
+## The Living Archive — why these three features and not the usual six
+
+Measured against the 2026 market, the authored chapter is competitive on *feel* and hopeless on
+*volume*: the category leaders run thousands of hand-made levels and add dozens weekly, plus half a
+dozen concurrent events. Copying that list would mean building a worse version of what Royal Match
+already does better.
+
+So the live layer only contains things the competition **cannot** ship, plus the minimum retention
+scaffolding to hold them together. All three come from the same property: the core is deterministic and
+has a bot simulator bolted to it.
+
+### The Daily Fold — one page, everyone, no server
+
+The date picks a seed; the seed weaves a page. No player identity enters the calculation, so two phones
+in different countries produce byte-identical levels.
+
+> Why nobody else does this: a match-3 board refills from the client's RNG. Two players "playing the
+> same daily" are playing two different boards, so a shared score compares nothing. Wonderfold banned
+> `System.Random` from the core years before this feature existed, for replay reasons — the daily is
+> that decision cashing out.
+
+The week has a deliberate shape (Monday 0.34 difficulty → Saturday 0.74) because measured play says a
+flat curve is the fastest route to churn.
+
+### The Endless Archive — infinite levels that were measured before you saw them
+
+`PageWeaver` invents a page; `PageAudition` plays it 24–500 times with the reference bot and tunes it
+until the win rate lands in band. Two dials, in order:
+
+1. **Moves** — first, because changing the budget does not change how a board reads.
+2. **Goal counts** — when the move dial saturates (still a walkover at 12 moves; still brutal at 48).
+
+A page that cannot be brought into band is thrown away and another is woven. Measured over depths 1–20:
+**20/20 in band, ~700 ms per page** on a desktop, which is why the audition is pumped inside a per-frame
+budget rather than run as a blocking call.
+
+> The audition earned its keep immediately. Its first draft scattered obstacles onto the back face of
+> cells belonging to no fold region — a face nothing can ever turn over — so "clear every torn page"
+> was unwinnable. The bots reported 8–42% against a 65% target and the pages were discarded. The rule is
+> now in `LevelValidator`, where it protects authored levels too.
+
+**`AuditionSettings.Canonical` is part of a page's identity, not a performance knob.** A client that ran
+200 playthroughs instead of 24 would tune to a different move budget and serve a different page. That
+would silently destroy the only thing the daily and the archive are for.
+
+### Story Threads — a verifiable replay you can paste into a message
+
+A run is `(page key, seed, ordered moves)`. Bit-packed — a swap costs 14 bits because the partner cell
+is a direction, not a coordinate — a thirty-move solve is about 70 characters of Crockford base32 with a
+checksum.
+
+Paste one and the game rebuilds the page from the key alone and replays it. The score is **recomputed**,
+never trusted, so an asynchronous leaderboard needs no authority to believe.
+
+### The scaffolding
+
+Table stakes, kept small and tied to the fiction:
+
+| system | the decision it creates |
+|---|---|
+| **Streak with a paid mend** | One missed day is buyable, two is not. A streak that snaps on the first busy Tuesday teaches players the counter does not matter; this keeps it meaningful *and* gives coins their first real sink. |
+| **Daily and weekly errands** | Generated from the day/week index, so everyone shares a list. Every metric is a counter the balance simulator already kept — quests cost the gameplay layer nothing. |
+| **Coins that spend** | Mend a streak, refill hearts, restock the pouch. Coins previously sat at 100 and did nothing. |
+| **Bound Pages** | Every fifth archive depth pays out, so a long climb becomes a series of near-term goals. |
+
+---
+
 ## Monetisation shape (not implemented)
 
 No purchase flow is built, but the design assumes it: ad-free free-to-play, lives, coins, pre-level

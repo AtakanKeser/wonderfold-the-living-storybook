@@ -25,6 +25,24 @@ win, the camera pulls back and the repaired panel takes its place in the scene.
 - **Built for measured iteration.** The exact gameplay core powers Unity, command-line simulation, level
   validation, and deterministic tests from one source of truth.
 
+### Three things the genre cannot currently do
+
+The gameplay core is deterministic, engine-free C# with a bot simulator attached. That was built for
+testing — and it turns out to buy three player-facing features the market leaders have no way to ship:
+
+- **A genuinely shared Daily Fold.** Match-3 boards are refilled from whatever random source each
+  client has, so a daily puzzle can never be the *same* puzzle for two people. Here the date picks the
+  seed, the seed weaves the page, and everybody on Earth plays the identical board — the Wordle
+  arrangement, in a genre that has never been able to run it honestly.
+- **The Endless Archive: infinite levels that are measured before they are served.** Every generated
+  page is played a few hundred times by the same bots that balanced the authored chapter, and the move
+  budget and objectives are tuned until the measured win rate lands in its target band. Running out of
+  levels is the genre's terminal churn event; this removes it without a content treadmill.
+- **Story Threads.** A whole playthrough is a seed plus an ordered list of intents, so it compresses to
+  a ~70-character code. Paste a friend's thread and the game rebuilds their page and replays their
+  solve move for move — and recomputes the score rather than believing it. No server, no video, no
+  trust required.
+
 ## Play it
 
 1. Open this folder with **Unity Hub** using Unity **6000.5.5f1**.
@@ -36,6 +54,19 @@ win, the camera pulls back and the repaired panel takes its place in the scene.
 During a level, drag adjacent tiles to swap them, tap boosters to activate them, and use the Fold buttons
 when the meter is full. The tool pouch contains a targeted hammer and ribbon rocket; lives recharge over
 time. Dialogue and the carnival presentation are part of the playable flow.
+
+### Navigation and controls
+
+- **MENU** pauses the current page and clearly offers **RESUME PAGE**, **RESTART PAGE**, or
+  **CHAPTER MAP**.
+- Returning to the chapter map never discards an authored page: **RESUME PAGE _N_** continues its saved
+  replay state, including the board's current fold state.
+- The level-result card also includes **CHAPTER MAP**, alongside its contextual primary action
+  (continue, retry, or return to the archive).
+- Runtime buttons use one tactile treatment for hover, press, disabled, and shadow states. Labels state
+  the action directly: **USE HAMMER**, **USE ROCKET**, and **FOLD PAGE**.
+- Mira and Quill react to gameplay and can be tapped during play for a small character animation and
+  voice response.
 
 ## Verify or explore from the terminal
 
@@ -51,9 +82,18 @@ dotnet run --project Tools/Wonderfold.Sim -- play --level 10 --seed 42
 
 # Generate a balance report with deterministic bots
 dotnet run --project Tools/Wonderfold.Sim -- simulate --all --runs 500
+
+# Weave and audition the first 20 pages of the Endless Archive
+dotnet run --project Tools/Wonderfold.Sim -- weave --depth 1 --count 20
+
+# Check a fortnight of shared Daily Fold pages before they reach anyone
+dotnet run --project Tools/Wonderfold.Sim -- daily --count 14 --verbose
+
+# Have a bot solve today's page, print its Story Thread, and verify the thread
+dotnet run --project Tools/Wonderfold.Sim -- replay --seed 7
 ```
 
-The current suite contains **63 passing tests**. The Unity layer is also validated with a Unity 6000.5.5f1
+The current suite contains **103 passing tests**. The Unity layer is also validated with a Unity 6000.5.5f1
 batch compilation pass.
 
 ## Included systems
@@ -64,8 +104,9 @@ batch compilation pass.
 | Fold mechanic | Fold meter, fold locks, alternate surfaces, seam matches, Chain Fold upgrades |
 | Power-ups | Ribbon Rocket, Ink Bloom, Origami Bird, Prism Bookmark, Golden Stitch, and combinations |
 | Level variety | Eight obstacle types, eight goals, portals, walkers, Blank Tide, and a pop-up boss |
-| Meta flow | Chapter map, unlocks, lives, pre-level rocket, in-level tools, story choice, saved diorama progress |
-| Presentation | Runtime UI, dialogue, paper-style sprites, authored visual overrides, VFX, audio tones, haptics, camera pull-back |
+| Meta flow | Chapter map, unlocks, lives, pre-level rocket, in-level tools, pause/restart/map navigation, saved-page resume, story choice, saved diorama progress |
+| Living archive | Shared Daily Fold, bot-auditioned Endless Archive, Story Thread share/verify codes, streaks with a paid mend, daily and weekly errands, a coin economy that spends |
+| Presentation | Runtime UI with tactile controls, dialogue, paper-style sprites, authored visual overrides, reactive character staging and touch reactions, VFX, match/booster SFX, authored Midnight Carnival music, haptics, camera pull-back |
 | Authoring | JSON level format, Unity Level Laboratory, CLI validation, and balance simulation |
 
 ## Architecture
@@ -75,14 +116,21 @@ and shared by the Unity game, automated tests, and the simulation tools. Unity p
 core's ordered event stream; it does not infer gameplay from rendered objects. This keeps play, replay,
 testing, and balancing deterministic.
 
+`Assets/Scripts/Core/Live` builds on exactly that determinism: `PageWeaver` invents a page from a seed,
+`PageAudition` measures it with the bot simulator until it lands in its win-rate band, and `ReplayCode`
+packs a run into a shareable string. Because none of it needs the engine, a shared page can be checked
+from the command line before it ever reaches a player.
+
 ## Documentation
 
 - [Architecture](Docs/ARCHITECTURE.md)
 - [Design notes](Docs/DESIGN.md)
 - [Level format](Docs/LEVEL_FORMAT.md)
+- [Third-party notices](Docs/THIRD_PARTY_NOTICES.md)
 
 ## Next steps
 
-The vertical slice is playable and validated. The highest-value follow-ups are Play Mode test coverage,
-mid-level save/resume, a repeatable gameplay capture, production-authored art and animation, and online
-live-event systems.
+The vertical slice is playable and validated, and the live archive runs entirely on-device. The
+highest-value follow-ups are Play Mode test coverage, a repeatable gameplay capture, frame-by-frame or
+skeletal character clips, and an optional server that turns local Daily Fold scores into real
+leaderboards — the client already produces verifiable results, so the server only has to rank them.

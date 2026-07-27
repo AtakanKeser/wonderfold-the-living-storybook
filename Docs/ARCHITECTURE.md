@@ -8,7 +8,7 @@ intended: `Assets/Scripts/Core/Wonderfold.Core.asmdef` sets `"noEngineReferences
 
 Three things fall out of that, and they are the reason for the constraint:
 
-1. **The rules can be tested without the engine.** 61 NUnit tests run in ~4 seconds via `dotnet test`,
+1. **The rules can be tested without the engine.** 103 NUnit tests run in ~8 seconds via `dotnet test`,
    and the *same source files* run inside Unity's Edit Mode Test Runner.
 2. **Levels can be measured instead of guessed.** The Level Laboratory plays a level five hundred to
    ten thousand times with bots. That is only affordable because a "playthrough" is a few thousand
@@ -19,6 +19,13 @@ Three things fall out of that, and they are the reason for the constraint:
 
 `netstandard2.1` + `LangVersion 9.0` on the headless project is a deliberate handcuff: anything that
 builds in `dotnet build` is guaranteed to build in Unity 6.
+
+A fourth consequence arrived later and turned out to be the commercially interesting one:
+
+4. **Content can be generated and measured on the player's device.** `Core/Live` weaves a level from a
+   seed and then runs the same bot sweep against it before serving it, which is what makes an infinite
+   archive of *fair* levels possible. It also makes a run shareable: a playthrough is a seed plus an
+   ordered list of intents, so it fits in a ~70-character code that any device can replay exactly.
 
 ---
 
@@ -50,8 +57,16 @@ builds in `dotnet build` is guaranteed to build in Unity 6.
 │                     └─ ShuffleService                    │
 │                                                          │
 │   FoldService ──► FoldTopology     Goals ◄── listener     │
+│                                                          │
+│   Live: PageWeaver ─► PageAudition ─► LevelSimulator      │
+│         ReplayCode ◄──────────────── PlayerMove history   │
 └──────────────────────────────────────────────────────────┘
 ```
+
+`Core/Live` sits on top of the rest of the core and depends on nothing outside it. It is the only part
+of the core that *creates* levels rather than running them, and it validates and measures everything it
+creates before handing it back. The Unity side (`LiveOpsService`) decides which page today is and what
+finishing it is worth; the core decides only whether a page is fair.
 
 The arrows only ever point one way. `Core` does not know `Game` exists; `Game` does not reach into
 `BoardModel` to work out what happened.

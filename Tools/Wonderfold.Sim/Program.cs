@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using Wonderfold.Core.Board;
 using Wonderfold.Core.Level;
+using Wonderfold.Core.Live;
 using Wonderfold.Core.Primitives;
 using Wonderfold.Core.Simulation;
 
@@ -49,6 +50,9 @@ namespace Wonderfold.Sim
                 case "validate": return RunValidate(library, options);
                 case "render": return RunRender(library, options);
                 case "play": return RunPlay(library, options);
+                case "weave": return RunWeave(options);
+                case "daily": return RunDaily(options);
+                case "replay": return RunReplay(library, options);
                 default:
                     Console.Error.WriteLine($"Unknown command '{options.Command}'.");
                     PrintHelp();
@@ -216,6 +220,239 @@ namespace Wonderfold.Sim
             return 0;
         }
 
+        // ------------------------------------------------------------------ live archive
+
+        /// <summary>
+        /// Weaves a stretch of the Endless Archive and reports what the audition measured. This is the
+        /// command that answers the only question that matters about generated content — "is it fair?" —
+        /// and it answers it with the same bots that balanced the authored chapter.
+        /// </summary>
+        private static int RunWeave(CommandLineOptions options)
+        {
+            int from = options.Depth > 0 ? options.Depth : 1;
+            int count = options.Count > 0 ? options.Count : 10;
+
+            Console.WriteLine($"Wonderfold — Endless Archive audition   depths {from}..{from + count - 1}");
+            Console.WriteLine(new string('─', 112));
+            Console.WriteLine($"{"depth",-6}{"name",-28}{"size",6}{"moves",7}{"target",8}{"win%",7}{"dead%",7}" +
+                              $"{"cand",6}{"plays",7}{"ms",7}  goals");
+            Console.WriteLine(new string('─', 112));
+
+            int outOfBand = 0;
+            var total = System.Diagnostics.Stopwatch.StartNew();
+
+            for (int i = 0; i < count; i++)
+            {
+                int depth = from + i;
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                var audition = EndlessArchive.Page(depth);
+                watch.Stop();
+
+                var level = audition.Level;
+                if (!audition.InBand) outOfBand++;
+
+                Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
+                    "{0,-6}{1,-28}{2,6}{3,7}{4,8:P0}{5,7:P0}{6,7:P0}{7,6}{8,7}{9,7}  {10}{11}",
+                    depth,
+                    Truncate(level.Name, 27),
+                    $"{level.Width}x{level.Height}",
+                    level.Moves,
+                    level.DesignWinRate,
+                    audition.WinRate,
+                    audition.DeadBoardRate,
+                    audition.Candidates,
+                    audition.Playthroughs,
+                    watch.ElapsedMilliseconds,
+                    DescribeGoals(level),
+                    audition.InBand ? string.Empty : "  ⚠ out of band"));
+
+                if (options.Verbose)
+                {
+                    var issues = LevelValidator.Validate(level);
+                    for (int j = 0; j < issues.Count; j++) Console.WriteLine($"        {issues[j]}");
+                }
+            }
+
+            total.Stop();
+            Console.WriteLine(new string('─', 112));
+            Console.WriteLine($"{count} pages woven in {total.ElapsedMilliseconds} ms " +
+                              $"({total.ElapsedMilliseconds / (double)count:F0} ms each), {outOfBand} out of band.");
+            return outOfBand > count / 4 ? 1 : 0;
+        }
+
+        /// <summary>Auditions the shared Daily Fold pages, which is how a week is checked before it ships.</summary>
+        private static int RunDaily(CommandLineOptions options)
+        {
+            int from = options.Day != int.MinValue ? options.Day : LiveClock.DayIndex(DateTime.UtcNow);
+            int count = options.Count > 0 ? options.Count : 7;
+
+            Console.WriteLine($"Wonderfold — Daily Fold audition   {LiveClock.DayLabel(from)} +{count} days");
+            Console.WriteLine(new string('─', 112));
+            Console.WriteLine($"{"date",-12}{"name",-30}{"size",6}{"moves",7}{"diff",6}{"target",8}{"win%",7}" +
+                              $"{"dead%",7}{"ms",7}  quests");
+            Console.WriteLine(new string('─', 112));
+
+            int outOfBand = 0;
+            for (int i = 0; i < count; i++)
+            {
+                int day = from + i;
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                var audition = DailyFold.Page(day);
+                watch.Stop();
+                if (!audition.InBand) outOfBand++;
+
+                var quests = QuestBook.Daily(day);
+                Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
+                    "{0,-12}{1,-30}{2,6}{3,7}{4,6:F2}{5,8:P0}{6,7:P0}{7,7:P0}{8,7}  {9}{10}",
+                    LiveClock.DayLabel(day),
+                    Truncate(audition.Level.Name, 29),
+                    $"{audition.Level.Width}x{audition.Level.Height}",
+                    audition.Level.Moves,
+                    DailyFold.DifficultyFor(day),
+                    audition.Level.DesignWinRate,
+                    audition.WinRate,
+                    audition.DeadBoardRate,
+                    watch.ElapsedMilliseconds,
+                    quests.Count,
+                    audition.InBand ? string.Empty : "  ⚠ out of band"));
+
+                if (!options.Verbose) continue;
+                for (int q = 0; q < quests.Count; q++)
+                    Console.WriteLine($"        · {quests[q].Title}  (+{quests[q].RewardCoins} coins)");
+            }
+
+            Console.WriteLine(new string('─', 112));
+            Console.WriteLine($"{count} daily pages checked, {outOfBand} out of band.");
+            return outOfBand > count / 3 ? 1 : 0;
+        }
+
+        /// <summary>
+        /// Replays a shared Story Thread against the page it names and reports the score it truly earns.
+        /// This is the verification path a client runs on a pasted code, exercised from the terminal.
+        /// </summary>
+        private static int RunReplay(LevelLibrary library, CommandLineOptions options)
+        {
+            string code = options.Code ?? BotThread(library, options);
+            if (string.IsNullOrEmpty(code))
+            {
+                Console.Error.WriteLine("replay needs --code <thread>, or --day/--depth/--level to have a bot produce one.");
+                return 2;
+            }
+
+            if (!ReplayCode.TryDecode(code, out var thread, out string error))
+            {
+                Console.Error.WriteLine(error);
+                return 1;
+            }
+
+            var definition = ResolvePage(library, thread.PageKey);
+            if (definition == null)
+            {
+                Console.Error.WriteLine($"Could not rebuild page '{thread.PageKey}'.");
+                return 1;
+            }
+
+            Console.WriteLine($"page   {thread.PageKey} — {definition.Name} ({definition.Width}x{definition.Height}, {definition.Moves} moves)");
+            Console.WriteLine($"seed   {thread.Seed}");
+            Console.WriteLine($"moves  {thread.Moves.Count}");
+
+            if (!ReplayVerifier.TryReplay(definition, thread, out var stats, out error))
+            {
+                Console.Error.WriteLine(error);
+                return 1;
+            }
+
+            int ink = RunScore.StoryInk(stats);
+            int stars = RunScore.Stars(definition, stats);
+            Console.WriteLine($"result {stats.Outcome}  ·  {stats.MovesRemaining} moves spare  ·  " +
+                              $"{stats.GoldenStitches} stitches  ·  {stats.SeamMatches} seam matches");
+            Console.WriteLine($"score  {ink:N0} story ink  {ShareCard.Stars(stars)}");
+            return stats.Outcome == LevelOutcome.Won ? 0 : 1;
+        }
+
+        /// <summary>
+        /// Has a bot solve a page and hands back the Story Thread for it. This is both a smoke test for
+        /// the whole share path and the fastest way to see a solution to today's page.
+        /// </summary>
+        private static string BotThread(LevelLibrary library, CommandLineOptions options)
+        {
+            string key;
+            LevelDefinition definition;
+
+            if (options.Depth > 0)
+            {
+                key = EndlessArchive.Key(options.Depth);
+                definition = EndlessArchive.Page(options.Depth).Level;
+            }
+            else if (options.Day != int.MinValue || options.LevelId <= 0)
+            {
+                int day = options.Day != int.MinValue ? options.Day : LiveClock.DayIndex(DateTime.UtcNow);
+                key = DailyFold.Key(day);
+                definition = DailyFold.Page(day).Level;
+            }
+            else
+            {
+                key = ReplayCode.AuthoredKey(options.LevelId);
+                definition = library.ById(options.LevelId);
+            }
+
+            if (definition == null) return null;
+
+            int seed = options.Seed;
+            var session = new LevelSession(definition, seed);
+            session.Events.Recording = false;
+            session.Start();
+
+            var bot = AgentFactory.Create(options.Agent, seed);
+            int guard = 0;
+            while (!session.IsOver && guard++ < 400)
+            {
+                var move = bot.ChooseMove(session);
+                if (move == null || !session.TryExecute(move.Value, out _)) break;
+            }
+
+            var thread = new ReplayThread(key, seed, new List<PlayerMove>(session.MoveHistory));
+            if (!ReplayCode.TryEncode(thread, out string code, out string error))
+            {
+                Console.Error.WriteLine(error);
+                return null;
+            }
+
+            Console.WriteLine($"bot thread ({options.Agent}, {session.MoveHistory.Count} moves, {code.Length} chars):");
+            Console.WriteLine(code);
+            Console.WriteLine();
+            return code;
+        }
+
+        /// <summary>Rebuilds any page a thread can name: a shared daily, an archive depth, or an authored page.</summary>
+        private static LevelDefinition ResolvePage(LevelLibrary library, string key)
+        {
+            if (DailyFold.TryParseKey(key, out int day)) return DailyFold.Page(day).Level;
+            if (EndlessArchive.TryParseKey(key, out int depth)) return EndlessArchive.Page(depth).Level;
+            if (ReplayCode.TryParseAuthored(key, out int levelId)) return library.ById(levelId);
+            return null;
+        }
+
+        private static string DescribeGoals(LevelDefinition level)
+        {
+            var text = new System.Text.StringBuilder();
+            for (int i = 0; i < level.Goals.Count; i++)
+            {
+                if (i > 0) text.Append(' ');
+                var goal = level.Goals[i];
+                switch (goal.Type)
+                {
+                    case "collect": text.Append(goal.Color).Append('×').Append(goal.Count); break;
+                    case "obstacle": text.Append(goal.Obstacle); break;
+                    case "seam": text.Append("seam×").Append(goal.Count); break;
+                    case "fold": text.Append("fold×").Append(goal.Count); break;
+                    default: text.Append(goal.Type); break;
+                }
+            }
+
+            return text.ToString();
+        }
+
         // ------------------------------------------------------------------ output helpers
 
         private static void PrintSession(LevelSession session)
@@ -355,6 +592,9 @@ namespace Wonderfold.Sim
   validate   check levels for authoring errors
   render     print a level's opening board
   play       play a level in the terminal
+  weave      audition generated Endless Archive pages
+  daily      audition the shared Daily Fold pages
+  replay     verify a shared Story Thread code
 
 options
   --level <id>        target one level (default: all)
@@ -365,10 +605,17 @@ options
   --levels <path>     levels directory                (default <repo>/Assets/Resources/Levels)
   --min-win <0..1>    lower edge of the target band   (default 0.35)
   --max-win <0..1>    upper edge of the target band   (default 0.85)
+  --depth <n>         first Endless Archive depth     (weave, default 1)
+  --day <n>           first day index                 (daily, default today)
+  --count <n>         how many pages to audition      (default 10 / 7)
+  --code <thread>     Story Thread to replay          (replay)
+  --verbose           print per-page detail
 
 examples
   wonderfold-sim simulate --all --runs 2000
-  wonderfold-sim simulate --level 12 --agent greedy --runs 300
+  wonderfold-sim weave --depth 1 --count 25 --verbose
+  wonderfold-sim daily --count 14
+  wonderfold-sim replay --code 08G2M-VD9...
   wonderfold-sim play --level 5 --seed 42");
         }
     }
@@ -385,6 +632,11 @@ examples
         public float MinWinRate = 0.35f;
         public float MaxWinRate = 0.85f;
         public bool ShowHelp;
+        public int Depth;
+        public int Day = int.MinValue;
+        public int Count;
+        public string Code;
+        public bool Verbose;
 
         public static CommandLineOptions Parse(string[] args)
         {
@@ -433,6 +685,22 @@ examples
                         break;
                     case "--max-win":
                         options.MaxWinRate = NextFloat(args, ref i, options.MaxWinRate);
+                        break;
+                    case "--depth":
+                        options.Depth = NextInt(args, ref i, options.Depth);
+                        break;
+                    case "--day":
+                        options.Day = NextInt(args, ref i, options.Day);
+                        break;
+                    case "--count":
+                        options.Count = NextInt(args, ref i, options.Count);
+                        break;
+                    case "--code":
+                        options.Code = NextString(args, ref i, options.Code);
+                        break;
+                    case "--verbose":
+                    case "-v":
+                        options.Verbose = true;
                         break;
                 }
             }

@@ -6,7 +6,7 @@ namespace Wonderfold.Core.Board
     /// <summary>
     /// Decides whether a swap is legal <i>before</i> anything is mutated.
     ///
-    /// <para>The rules follow the Royal-Match family so the audience needs no re-learning:</para>
+    /// <para>The rules follow familiar match-three conventions, so players need no re-learning:</para>
     /// <list type="bullet">
     /// <item>An ordinary swap must create a match.</item>
     /// <item>Dragging a booster onto any neighbour is always legal and sets the booster off where it

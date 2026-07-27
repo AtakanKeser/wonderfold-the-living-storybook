@@ -15,8 +15,13 @@ namespace Wonderfold.Game.UI
     public sealed class StoryMapView : MonoBehaviour
     {
         private const float ReferenceWidth = 1080f;
+        private CanvasScaler _canvasScaler;
+        private Text _title;
+        private Text _chapter;
         private Text _livesLabel;
         private Text _progressLabel;
+        private Button _resumeButton;
+        private Text _resumeLabel;
         private RectTransform _levelsRoot;
         private readonly List<Button> _buttons = new List<Button>();
         private LevelCatalog _catalog;
@@ -28,8 +33,12 @@ namespace Wonderfold.Game.UI
         private int _selectedLevelId;
         private bool _packStartingRocket;
         private static Font _font;
+        private int _layoutScreenWidth = -1;
+        private int _layoutScreenHeight = -1;
 
         public event Action<int, bool> LevelRequested;
+        public event Action ArchiveRequested;
+        public event Action ResumeRequested;
 
         public static StoryMapView Create(Transform parent)
         {
@@ -46,6 +55,7 @@ namespace Wonderfold.Game.UI
             scaler.matchWidthOrHeight = 0.5f;
 
             var view = root.AddComponent<StoryMapView>();
+            view._canvasScaler = scaler;
             view.Build();
             root.SetActive(false);
             return view;
@@ -57,6 +67,7 @@ namespace Wonderfold.Game.UI
             _profile = profile;
             profile.RefreshLives(DateTime.UtcNow.Ticks);
             gameObject.SetActive(true);
+            ApplyResponsiveLayout(true);
             Rebuild();
         }
 
@@ -64,6 +75,7 @@ namespace Wonderfold.Game.UI
 
         private void Update()
         {
+            ApplyResponsiveLayout(false);
             if (!gameObject.activeInHierarchy || _profile == null || Time.unscaledTime < _nextClockUpdate) return;
             _nextClockUpdate = Time.unscaledTime + 1f;
             _profile.RefreshLives(DateTime.UtcNow.Ticks);
@@ -81,13 +93,13 @@ namespace Wonderfold.Game.UI
             Panel(transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
                 new Color(0.045f, 0.035f, 0.10f, 0.985f));
 
-            var title = Label(transform, "THE WONDERFOLD ARCHIVE", 52, TextAnchor.MiddleCenter,
+            _title = Label(transform, "THE WONDERFOLD ARCHIVE", 52, TextAnchor.MiddleCenter,
                 new Vector2(0.05f, 0.86f), new Vector2(0.95f, 0.97f), Vector2.zero, Vector2.zero);
-            title.color = new Color(1f, 0.84f, 0.38f);
+            _title.color = new Color(1f, 0.84f, 0.38f);
 
-            var chapter = Label(transform, "BOOK I  ·  THE MIDNIGHT CARNIVAL", 30, TextAnchor.MiddleCenter,
+            _chapter = Label(transform, "BOOK I  ·  THE MIDNIGHT CARNIVAL", 30, TextAnchor.MiddleCenter,
                 new Vector2(0.05f, 0.80f), new Vector2(0.95f, 0.87f), Vector2.zero, Vector2.zero);
-            chapter.color = new Color(0.77f, 0.82f, 0.98f);
+            _chapter.color = new Color(0.77f, 0.82f, 0.98f);
 
             _livesLabel = Label(transform, "", 32, TextAnchor.MiddleCenter,
                 new Vector2(0.05f, 0.73f), new Vector2(0.95f, 0.80f), Vector2.zero, Vector2.zero);
@@ -95,15 +107,70 @@ namespace Wonderfold.Game.UI
                 new Vector2(0.05f, 0.68f), new Vector2(0.95f, 0.74f), Vector2.zero, Vector2.zero);
             _progressLabel.color = new Color(0.78f, 0.75f, 0.88f);
 
+            _resumeButton = AddButton(transform, "Resume Page", new Vector2(0.28f, 0.615f), new Vector2(0.72f, 0.665f),
+                new Color(0.36f, 0.68f, 0.50f, 1f), () => ResumeRequested?.Invoke());
+            _resumeLabel = Label(_resumeButton.transform, "RESUME SAVED PAGE", 20, TextAnchor.MiddleCenter,
+                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            _resumeLabel.color = new Color(0.06f, 0.10f, 0.09f);
+
             BuildSetupPanel();
 
             var root = new GameObject("Level Pages", typeof(RectTransform));
             root.transform.SetParent(transform, false);
             _levelsRoot = root.GetComponent<RectTransform>();
-            _levelsRoot.anchorMin = new Vector2(0.04f, 0.06f);
-            _levelsRoot.anchorMax = new Vector2(0.96f, 0.67f);
+            _levelsRoot.anchorMin = new Vector2(0.04f, 0.16f);
+            _levelsRoot.anchorMax = new Vector2(0.96f, 0.60f);
             _levelsRoot.offsetMin = Vector2.zero;
             _levelsRoot.offsetMax = Vector2.zero;
+            ApplyResponsiveLayout(true);
+        }
+
+        private void ApplyResponsiveLayout(bool force)
+        {
+            if (_levelsRoot == null || (!force && Screen.width == _layoutScreenWidth && Screen.height == _layoutScreenHeight))
+                return;
+
+            _layoutScreenWidth = Screen.width;
+            _layoutScreenHeight = Screen.height;
+            bool landscape = Screen.width > Screen.height * 1.15f;
+            if (_canvasScaler != null)
+            {
+                _canvasScaler.referenceResolution = landscape
+                    ? new Vector2(1920f, 1080f)
+                    : new Vector2(ReferenceWidth, 1920f);
+                _canvasScaler.matchWidthOrHeight = 0.5f;
+            }
+
+            if (!landscape)
+            {
+                SetRect(_title.rectTransform, new Vector2(0.05f, 0.86f), new Vector2(0.95f, 0.97f));
+                SetRect(_chapter.rectTransform, new Vector2(0.05f, 0.80f), new Vector2(0.95f, 0.87f));
+                SetRect(_livesLabel.rectTransform, new Vector2(0.05f, 0.73f), new Vector2(0.95f, 0.80f));
+                SetRect(_progressLabel.rectTransform, new Vector2(0.05f, 0.68f), new Vector2(0.95f, 0.74f));
+                SetRect(_resumeButton.transform as RectTransform, new Vector2(0.28f, 0.615f), new Vector2(0.72f, 0.665f));
+                SetRect(_levelsRoot, new Vector2(0.04f, 0.16f), new Vector2(0.96f, 0.60f));
+                _title.fontSize = 52;
+                _chapter.fontSize = 30;
+                return;
+            }
+
+            // Landscape has room for a broad book-selection spread rather than a tall phone list.
+            SetRect(_title.rectTransform, new Vector2(0.08f, 0.86f), new Vector2(0.92f, 0.97f));
+            SetRect(_chapter.rectTransform, new Vector2(0.08f, 0.79f), new Vector2(0.92f, 0.86f));
+            SetRect(_livesLabel.rectTransform, new Vector2(0.08f, 0.72f), new Vector2(0.48f, 0.79f));
+            SetRect(_progressLabel.rectTransform, new Vector2(0.50f, 0.72f), new Vector2(0.92f, 0.79f));
+            SetRect(_resumeButton.transform as RectTransform, new Vector2(0.34f, 0.655f), new Vector2(0.66f, 0.71f));
+            SetRect(_levelsRoot, new Vector2(0.08f, 0.16f), new Vector2(0.92f, 0.62f));
+            _title.fontSize = 48;
+            _chapter.fontSize = 26;
+        }
+
+        private static void SetRect(RectTransform rect, Vector2 min, Vector2 max)
+        {
+            rect.anchorMin = min;
+            rect.anchorMax = max;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
         }
 
         private void Rebuild()
@@ -142,19 +209,23 @@ namespace Wonderfold.Game.UI
 
                 int id = level.Id;
                 var button = page.GetComponent<Button>();
+                ButtonFeedback.Apply(button);
                 button.interactable = unlocked && _profile.Lives > 0;
                 button.onClick.AddListener(() => ShowSetup(id));
                 _buttons.Add(button);
             }
 
-            // --- LIVE OPS: WEEKLY LOST PAGE ---
-            int weeklyLevelId = (DateTime.UtcNow.DayOfYear / 7) % count + 1;
-            var liveOpsBtn = AddButton(_levelsRoot.transform, "LiveOps Button", new Vector2(0.1f, -0.15f), new Vector2(0.9f, -0.02f),
-                new Color(0.38f, 0.20f, 0.60f, 0.95f), () => ShowSetup(weeklyLevelId));
-            var liveOpsLabel = Label(liveOpsBtn.transform, "✦ WEEKLY LOST PAGE ✦\nPlay this week's restored memory", 
-                24, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            liveOpsLabel.color = new Color(1f, 0.85f, 0.40f);
-            
+            // The way into the living half of the game. It replaces an earlier placeholder that simply
+            // reopened an authored level on a weekly rotation — the archive now serves pages that are
+            // woven and measured for the occasion rather than borrowed from the chapter.
+            var archiveButton = AddButton(_levelsRoot.transform, "Living Archive",
+                new Vector2(0.06f, -0.17f), new Vector2(0.94f, -0.02f),
+                new Color(0.38f, 0.20f, 0.60f, 0.95f), () => ArchiveRequested?.Invoke());
+            var archiveLabel = Label(archiveButton.transform,
+                "✦ THE LIVING ARCHIVE ✦\nToday's shared Lost Page · the Endless Archive · errands",
+                23, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            archiveLabel.color = new Color(1f, 0.85f, 0.40f);
+
             RefreshHeader();
         }
 
@@ -220,6 +291,12 @@ namespace Wonderfold.Game.UI
             if (_profile == null) return;
             int restored = _profile.RestoredPieces.Count;
             _progressLabel.text = $"{restored}/20 paper scenes restored  ·  tools:  ⚒ {_profile.Hammers}   ➜ {_profile.RibbonRockets}";
+            if (_resumeButton != null)
+            {
+                _resumeButton.gameObject.SetActive(_profile.HasActiveSession);
+                if (_resumeLabel != null && _profile.HasActiveSession)
+                    _resumeLabel.text = $"RESUME PAGE {_profile.ActiveLevelId}";
+            }
             if (_profile.Lives >= PlayerProfile.MaxLives)
             {
                 _livesLabel.text = $"♥  {_profile.Lives}/{PlayerProfile.MaxLives}  —  every Storykeeper is ready";
@@ -279,6 +356,7 @@ namespace Wonderfold.Game.UI
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
             var button = go.GetComponent<Button>();
+            ButtonFeedback.Apply(button);
             button.onClick.AddListener(action);
             return button;
         }

@@ -21,19 +21,29 @@ namespace Wonderfold.Game.UI
     /// </summary>
     public sealed class GameHud : MonoBehaviour
     {
+        private CanvasScaler _canvasScaler;
+        private RectTransform _topBar;
         private Text _levelLabel;
         private Text _movesLabel;
         private Text _livesLabel;
+        private Button _menuButton;
         private Image _foldFill;
         private Text _foldLabel;
+        private RectTransform _meterBack;
         private RectTransform _goalRow;
         private RectTransform _foldButtonRow;
         private RectTransform _toolButtonRow;
+        private HorizontalLayoutGroup _goalHorizontalLayout;
+        private HorizontalLayoutGroup _foldHorizontalLayout;
+        private HorizontalLayoutGroup _toolHorizontalLayout;
+        private int _layoutScreenWidth = -1;
+        private int _layoutScreenHeight = -1;
         private GameObject _endPanel;
         private Text _endTitle;
         private Text _endSubtitle;
         private Button _endPrimary;
         private Text _endPrimaryLabel;
+        private Button _endMapButton;
 
         private readonly List<GoalChip> _goalChips = new List<GoalChip>();
         private readonly List<Button> _foldButtons = new List<Button>();
@@ -43,17 +53,24 @@ namespace Wonderfold.Game.UI
         private PageTool? _selectedTool;
 
         private GameObject _dialoguePanel;
+        private CanvasGroup _dialogueCanvasGroup;
         private Image _dialoguePortrait;
         private Text _dialogueSpeaker;
         private Text _dialogueLine;
+        private Vector2 _dialoguePortraitBasePosition;
         private bool _dialogueAdvance;
 
         private GameObject _choicePanel;
         private string _choiceValue;
+        private GameObject _pausePanel;
 
         public event System.Action<int> FoldRequested;
         public event System.Action PrimaryEndActionRequested;
         public event Action<PageTool?> ToolSelected;
+        public event Action MenuOpened;
+        public event Action MenuClosed;
+        public event Action RestartLevelRequested;
+        public event Action ChapterMapRequested;
 
         private sealed class GoalChip
         {
@@ -77,6 +94,7 @@ namespace Wonderfold.Game.UI
             scaler.matchWidthOrHeight = 0.5f;
 
             var hud = canvasObject.AddComponent<GameHud>();
+            hud._canvasScaler = scaler;
             hud.Build();
             return hud;
         }
@@ -96,21 +114,27 @@ namespace Wonderfold.Game.UI
         {
             var top = Panel(transform, new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(0f, -180f), new Vector2(0f, 0f), new Color(0.09f, 0.08f, 0.16f, 0.85f));
+            _topBar = top.rectTransform;
 
             _levelLabel = Label(top, "Wonderfold", 42, TextAnchor.MiddleLeft,
-                new Vector2(0f, 0f), new Vector2(0.50f, 1f), new Vector2(40f, 0f), new Vector2(0f, 0f));
+                new Vector2(0f, 0f), new Vector2(0.46f, 1f), new Vector2(40f, 0f), new Vector2(0f, 0f));
 
             _livesLabel = Label(top, "♥ 5", 30, TextAnchor.MiddleCenter,
-                new Vector2(0.48f, 0f), new Vector2(0.72f, 1f), Vector2.zero, Vector2.zero);
+                new Vector2(0.46f, 0f), new Vector2(0.66f, 1f), Vector2.zero, Vector2.zero);
 
-            _movesLabel = Label(top, "0", 62, TextAnchor.MiddleRight,
-                new Vector2(0.72f, 0f), new Vector2(1f, 1f), new Vector2(0f, 0f), new Vector2(-40f, 0f));
+            _movesLabel = Label(top, "MOVES\n0", 62, TextAnchor.MiddleRight,
+                new Vector2(0.67f, 0f), new Vector2(0.83f, 1f), Vector2.zero, Vector2.zero);
+
+            _menuButton = CreateButton(top, "Menu", "☰  MENU", new Color(0.33f, 0.30f, 0.52f, 0.96f),
+                new Vector2(0.85f, 0.18f), new Vector2(0.97f, 0.82f), 21, out _);
+            _menuButton.onClick.AddListener(OpenPauseMenu);
 
             _goalRow = Row(transform, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(20f, -320f), new Vector2(-20f, -190f));
+                new Vector2(20f, -320f), new Vector2(-20f, -190f), out _goalHorizontalLayout);
 
             var meterBack = Panel(transform, new Vector2(0.08f, 0f), new Vector2(0.92f, 0f),
                 new Vector2(0f, 150f), new Vector2(0f, 200f), new Color(1f, 1f, 1f, 0.16f));
+            _meterBack = meterBack.rectTransform;
 
             var fillObject = new GameObject("Fill", typeof(Image));
             fillObject.transform.SetParent(meterBack.transform, false);
@@ -127,14 +151,151 @@ namespace Wonderfold.Game.UI
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
             _foldButtonRow = Row(transform, new Vector2(0f, 0f), new Vector2(1f, 0f),
-                new Vector2(20f, 40f), new Vector2(-20f, 140f));
+                new Vector2(20f, 40f), new Vector2(-20f, 140f), out _foldHorizontalLayout);
 
             _toolButtonRow = Row(transform, new Vector2(0f, 0f), new Vector2(1f, 0f),
-                new Vector2(20f, 145f), new Vector2(-20f, 245f));
+                new Vector2(20f, 145f), new Vector2(-20f, 245f), out _toolHorizontalLayout);
 
             BuildEndPanel();
+            BuildPausePanel();
             BuildDialoguePanel();
             BuildChoicePanel();
+            ApplyResponsiveLayout(true);
+        }
+
+        private void Update()
+        {
+            if (Screen.width == _layoutScreenWidth && Screen.height == _layoutScreenHeight) return;
+            ApplyResponsiveLayout(false);
+        }
+
+        /// <summary>
+        /// Portrait keeps the familiar top / board / bottom-mobile rhythm. Landscape turns the spare
+        /// width into a right-hand information rail, so buttons never float over the board.
+        /// </summary>
+        private void ApplyResponsiveLayout(bool force)
+        {
+            if (_topBar == null || (!force && Screen.width == _layoutScreenWidth && Screen.height == _layoutScreenHeight))
+                return;
+
+            _layoutScreenWidth = Screen.width;
+            _layoutScreenHeight = Screen.height;
+            bool landscape = Screen.width > Screen.height * 1.15f;
+
+            if (_canvasScaler != null)
+            {
+                _canvasScaler.referenceResolution = landscape
+                    ? new Vector2(1920f, 1080f)
+                    : new Vector2(1080f, 1920f);
+                _canvasScaler.matchWidthOrHeight = 0.5f;
+            }
+
+            if (landscape) ApplyLandscapeLayout();
+            else ApplyPortraitLayout();
+            ApplyFlowLayout(landscape);
+        }
+
+        private void ApplyPortraitLayout()
+        {
+            SetRect(_topBar, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -180f), Vector2.zero);
+            SetTextRect(_levelLabel, new Vector2(0f, 0f), new Vector2(0.46f, 1f), new Vector2(40f, 0f),
+                Vector2.zero, 42, TextAnchor.MiddleLeft, HorizontalWrapMode.Overflow);
+            SetTextRect(_livesLabel, new Vector2(0.46f, 0f), new Vector2(0.66f, 1f), Vector2.zero,
+                Vector2.zero, 30, TextAnchor.MiddleCenter, HorizontalWrapMode.Overflow);
+            SetTextRect(_movesLabel, new Vector2(0.67f, 0f), new Vector2(0.83f, 1f), Vector2.zero,
+                Vector2.zero, 54, TextAnchor.MiddleCenter, HorizontalWrapMode.Overflow);
+            SetRect(_menuButton.transform as RectTransform, new Vector2(0.85f, 0.18f), new Vector2(0.97f, 0.82f),
+                Vector2.zero, Vector2.zero);
+
+            SetRect(_goalRow, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(20f, -320f),
+                new Vector2(-20f, -190f));
+            SetRect(_meterBack, new Vector2(0.08f, 0f), new Vector2(0.92f, 0f), new Vector2(0f, 150f),
+                new Vector2(0f, 200f));
+            SetRect(_foldButtonRow, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(20f, 40f),
+                new Vector2(-20f, 140f));
+            SetRect(_toolButtonRow, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(20f, 145f),
+                new Vector2(-20f, 245f));
+            _foldLabel.fontSize = 30;
+        }
+
+        private void ApplyLandscapeLayout()
+        {
+            // The board owns the left two thirds of a landscape display. Everything actionable is
+            // intentionally contained in this right rail.
+            SetRect(_topBar, new Vector2(0.67f, 0.79f), new Vector2(0.98f, 0.98f), Vector2.zero, Vector2.zero);
+            SetTextRect(_levelLabel, new Vector2(0.06f, 0.53f), new Vector2(0.94f, 0.97f), Vector2.zero,
+                Vector2.zero, 26, TextAnchor.MiddleCenter, HorizontalWrapMode.Wrap);
+            SetTextRect(_livesLabel, new Vector2(0.06f, 0.12f), new Vector2(0.53f, 0.52f), Vector2.zero,
+                Vector2.zero, 23, TextAnchor.MiddleLeft, HorizontalWrapMode.Overflow);
+            SetTextRect(_movesLabel, new Vector2(0.06f, 0.08f), new Vector2(0.64f, 0.54f), Vector2.zero,
+                Vector2.zero, 40, TextAnchor.MiddleCenter, HorizontalWrapMode.Overflow);
+            SetRect(_menuButton.transform as RectTransform, new Vector2(0.67f, 0.08f), new Vector2(0.94f, 0.34f),
+                Vector2.zero, Vector2.zero);
+
+            SetRect(_goalRow, new Vector2(0.67f, 0.55f), new Vector2(0.98f, 0.77f), Vector2.zero, Vector2.zero);
+            SetRect(_meterBack, new Vector2(0.67f, 0.50f), new Vector2(0.98f, 0.535f), Vector2.zero, Vector2.zero);
+            SetRect(_foldButtonRow, new Vector2(0.67f, 0.32f), new Vector2(0.98f, 0.48f), Vector2.zero, Vector2.zero);
+            SetRect(_toolButtonRow, new Vector2(0.67f, 0.13f), new Vector2(0.98f, 0.29f), Vector2.zero, Vector2.zero);
+            _foldLabel.fontSize = 21;
+        }
+
+        private void ApplyFlowLayout(bool landscape)
+        {
+            _goalHorizontalLayout.enabled = true;
+            _foldHorizontalLayout.enabled = true;
+            _toolHorizontalLayout.enabled = true;
+            _goalHorizontalLayout.spacing = landscape ? 10f : 18f;
+            _foldHorizontalLayout.spacing = landscape ? 10f : 18f;
+            _toolHorizontalLayout.spacing = landscape ? 10f : 18f;
+
+            float goalWidth = landscape ? CompactRowWidth(_goalChips.Count, 170f) : 120f;
+            float foldWidth = landscape ? CompactRowWidth(_foldButtons.Count, 260f) : 260f;
+            float toolWidth = landscape ? CompactRowWidth(_toolButtons.Count, 255f) : 255f;
+            float goalHeight = landscape ? 76f : 120f;
+            float foldHeight = landscape ? 66f : 96f;
+            float toolHeight = landscape ? 68f : 92f;
+
+            for (int i = 0; i < _goalChips.Count; i++)
+                SetLayoutSize(_goalChips[i].Root, goalWidth, goalHeight);
+            for (int i = 0; i < _foldButtons.Count; i++)
+                SetLayoutSize(_foldButtons[i].gameObject, foldWidth, foldHeight);
+            foreach (var pair in _toolButtons)
+                SetLayoutSize(pair.Value.gameObject, toolWidth, toolHeight);
+
+            LayoutRebuilder.ForceRebuildLayoutImmediate(_goalRow);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(_foldButtonRow);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(_toolButtonRow);
+        }
+
+        private static float CompactRowWidth(int count, float maximum)
+        {
+            if (count <= 0) return maximum;
+            return Mathf.Min(maximum, Mathf.Max(88f, 560f / count - 8f));
+        }
+
+        private static void SetLayoutSize(GameObject go, float width, float height)
+        {
+            var layout = go.GetComponent<LayoutElement>();
+            if (layout == null) return;
+            layout.preferredWidth = width;
+            layout.preferredHeight = height;
+        }
+
+        private static void SetRect(RectTransform rect, Vector2 min, Vector2 max, Vector2 offsetMin, Vector2 offsetMax)
+        {
+            rect.anchorMin = min;
+            rect.anchorMax = max;
+            rect.offsetMin = offsetMin;
+            rect.offsetMax = offsetMax;
+        }
+
+        private static void SetTextRect(Text text, Vector2 min, Vector2 max, Vector2 offsetMin, Vector2 offsetMax,
+            int size, TextAnchor alignment, HorizontalWrapMode wrap)
+        {
+            SetRect(text.rectTransform, min, max, offsetMin, offsetMax);
+            text.fontSize = size;
+            text.alignment = alignment;
+            text.horizontalOverflow = wrap;
         }
 
         private void BuildEndPanel()
@@ -151,26 +312,70 @@ namespace Wonderfold.Game.UI
             _endSubtitle = Label(card, "", 34, TextAnchor.UpperCenter,
                 new Vector2(0f, 0.28f), new Vector2(1f, 0.62f), new Vector2(30f, 0f), new Vector2(-30f, 0f));
 
-            var buttonObject = new GameObject("Primary", typeof(Image), typeof(Button));
-            buttonObject.transform.SetParent(card.transform, false);
-            var buttonImage = buttonObject.GetComponent<Image>();
-            buttonImage.sprite = ProceduralArt.Solid();
-            buttonImage.color = new Color(1f, 0.83f, 0.35f, 1f);
-
-            var buttonRect = buttonImage.rectTransform;
-            buttonRect.anchorMin = new Vector2(0.2f, 0.08f);
-            buttonRect.anchorMax = new Vector2(0.8f, 0.24f);
-            buttonRect.offsetMin = Vector2.zero;
-            buttonRect.offsetMax = Vector2.zero;
-
-            _endPrimary = buttonObject.GetComponent<Button>();
+            _endPrimary = CreateButton(card, "Primary", "Continue", new Color(1f, 0.83f, 0.35f, 1f),
+                new Vector2(0.20f, 0.14f), new Vector2(0.80f, 0.29f), 34, out _endPrimaryLabel);
             _endPrimary.onClick.AddListener(() => PrimaryEndActionRequested?.Invoke());
-
-            _endPrimaryLabel = Label(buttonImage, "Continue", 38, TextAnchor.MiddleCenter,
-                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             _endPrimaryLabel.color = new Color(0.1f, 0.08f, 0.05f);
 
+            _endMapButton = CreateButton(card, "Chapter Map", "CHAPTER MAP", new Color(0.42f, 0.37f, 0.66f, 1f),
+                new Vector2(0.20f, 0.04f), new Vector2(0.80f, 0.12f), 22, out var mapLabel);
+            mapLabel.color = new Color(0.98f, 0.96f, 1f);
+            _endMapButton.onClick.AddListener(() => ChapterMapRequested?.Invoke());
+
             _endPanel.SetActive(false);
+        }
+
+        private void BuildPausePanel()
+        {
+            _pausePanel = Panel(transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
+                new Color(0.035f, 0.025f, 0.08f, 0.88f)).gameObject;
+            var card = Panel(_pausePanel.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(-350f, -290f), new Vector2(350f, 290f), new Color(0.15f, 0.13f, 0.25f, 0.99f));
+            var title = Label(card, "PAGE MENU", 54, TextAnchor.MiddleCenter,
+                new Vector2(0.08f, 0.71f), new Vector2(0.92f, 0.94f), Vector2.zero, Vector2.zero);
+            title.color = new Color(1f, 0.84f, 0.40f);
+            var copy = Label(card, "Your progress on this page is saved.", 25, TextAnchor.MiddleCenter,
+                new Vector2(0.08f, 0.59f), new Vector2(0.92f, 0.72f), Vector2.zero, Vector2.zero);
+            copy.color = new Color(0.83f, 0.81f, 0.93f);
+
+            var resume = CreateButton(card, "Resume Page", "RESUME PAGE", new Color(0.39f, 0.74f, 0.51f, 1f),
+                new Vector2(0.14f, 0.41f), new Vector2(0.86f, 0.54f), 27, out var resumeLabel);
+            resumeLabel.color = new Color(0.06f, 0.10f, 0.09f);
+            resume.onClick.AddListener(ClosePauseMenu);
+
+            var restart = CreateButton(card, "Restart Page", "RESTART PAGE", new Color(0.98f, 0.66f, 0.33f, 1f),
+                new Vector2(0.14f, 0.24f), new Vector2(0.86f, 0.37f), 27, out var restartLabel);
+            restartLabel.color = new Color(0.12f, 0.08f, 0.05f);
+            restart.onClick.AddListener(() =>
+            {
+                _pausePanel.SetActive(false);
+                RestartLevelRequested?.Invoke();
+            });
+
+            var map = CreateButton(card, "Chapter Map", "CHAPTER MAP", new Color(0.44f, 0.39f, 0.71f, 1f),
+                new Vector2(0.14f, 0.07f), new Vector2(0.86f, 0.20f), 27, out var mapLabel);
+            mapLabel.color = new Color(0.98f, 0.96f, 1f);
+            map.onClick.AddListener(() =>
+            {
+                _pausePanel.SetActive(false);
+                ChapterMapRequested?.Invoke();
+            });
+            _pausePanel.SetActive(false);
+        }
+
+        private void OpenPauseMenu()
+        {
+            if (_pausePanel == null || _endPanel.activeSelf) return;
+            _pausePanel.transform.SetAsLastSibling();
+            _pausePanel.SetActive(true);
+            MenuOpened?.Invoke();
+        }
+
+        private void ClosePauseMenu()
+        {
+            if (_pausePanel == null || !_pausePanel.activeSelf) return;
+            _pausePanel.SetActive(false);
+            MenuClosed?.Invoke();
         }
 
         // ------------------------------------------------------------------ updates
@@ -181,6 +386,7 @@ namespace Wonderfold.Game.UI
             RebuildGoalChips(session);
             RebuildFoldButtons(session);
             RebuildToolButtons();
+            ApplyResponsiveLayout(true);
             _endPanel.SetActive(false);
         }
 
@@ -190,11 +396,12 @@ namespace Wonderfold.Game.UI
             _profile = profile;
             RefreshProfile();
             RebuildToolButtons();
+            ApplyResponsiveLayout(true);
         }
 
         public void Refresh(LevelSession session)
         {
-            _movesLabel.text = session.MovesRemaining.ToString();
+            _movesLabel.text = $"MOVES\n{session.MovesRemaining}";
 
             float normalised = session.FoldMeter.Normalised;
             _foldFill.rectTransform.anchorMax = new Vector2(normalised, 1f);
@@ -281,7 +488,7 @@ namespace Wonderfold.Game.UI
                 image.sprite = ProceduralArt.RoundedSquare(0.2f, 0.02f);
                 image.color = new Color(0.98f, 0.96f, 0.90f, 0.92f);
 
-                var label = Label(image, $"Fold\n{regions[i].Name}", 26, TextAnchor.MiddleCenter,
+                var label = Label(image, $"FOLD PAGE\n{regions[i].Name}", 24, TextAnchor.MiddleCenter,
                     Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
                 label.color = new Color(0.10f, 0.09f, 0.16f);
 
@@ -290,6 +497,7 @@ namespace Wonderfold.Game.UI
                 layout.preferredHeight = 96f;
 
                 var button = buttonObject.GetComponent<Button>();
+                ButtonFeedback.Apply(button);
                 button.onClick.AddListener(() => FoldRequested?.Invoke(regionId));
                 _foldButtons.Add(button);
             }
@@ -315,13 +523,14 @@ namespace Wonderfold.Game.UI
             image.color = tool == PageTool.Hammer
                 ? new Color(0.70f, 0.77f, 0.94f, 0.95f)
                 : new Color(1f, 0.72f, 0.38f, 0.95f);
-            var label = Label(image, $"{icon} {name}", 23, TextAnchor.MiddleCenter,
+            var label = Label(image, $"USE {icon} {name}", 23, TextAnchor.MiddleCenter,
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             label.color = new Color(0.10f, 0.08f, 0.15f);
             var layout = go.AddComponent<LayoutElement>();
             layout.preferredWidth = 255f;
             layout.preferredHeight = 92f;
             var button = go.GetComponent<Button>();
+            ButtonFeedback.Apply(button);
             button.onClick.AddListener(() => SelectTool(tool));
             _toolButtons.Add(tool, button);
         }
@@ -334,7 +543,7 @@ namespace Wonderfold.Game.UI
                 int count = pair.Key == PageTool.Hammer ? _profile?.Hammers ?? 0 : _profile?.RibbonRockets ?? 0;
                 string icon = pair.Key == PageTool.Hammer ? "⚒" : "➜";
                 string name = pair.Key == PageTool.Hammer ? "HAMMER" : "ROCKET";
-                if (label != null) label.text = $"{icon} {name}  ×{count}";
+                if (label != null) label.text = $"USE {icon} {name}  ×{count}";
                 pair.Value.interactable = count > 0;
                 var image = pair.Value.GetComponent<Image>();
                 if (image != null) image.color = _selectedTool == pair.Key
@@ -371,12 +580,20 @@ namespace Wonderfold.Game.UI
 
         public void HideLevelEnd() => _endPanel.SetActive(false);
 
+        /// <summary>Shows or hides the gameplay layer while the map/archive owns the screen.</summary>
+        public void SetGameplayVisible(bool visible)
+        {
+            if (!visible) ClosePauseMenu();
+            gameObject.SetActive(visible);
+        }
+
         // ------------------------------------------------------------------ character dialogue and small story choices
 
         private void BuildDialoguePanel()
         {
             _dialoguePanel = Panel(transform, new Vector2(0.04f, 0f), new Vector2(0.96f, 0f),
                 new Vector2(0f, 270f), new Vector2(0f, 590f), new Color(0.09f, 0.07f, 0.17f, 0.97f)).gameObject;
+            _dialogueCanvasGroup = _dialoguePanel.AddComponent<CanvasGroup>();
 
             var portrait = new GameObject("Portrait", typeof(Image));
             portrait.transform.SetParent(_dialoguePanel.transform, false);
@@ -387,6 +604,7 @@ namespace Wonderfold.Game.UI
             portraitRect.anchorMax = new Vector2(0.23f, 0.83f);
             portraitRect.offsetMin = Vector2.zero;
             portraitRect.offsetMax = Vector2.zero;
+            _dialoguePortraitBasePosition = portraitRect.anchoredPosition;
 
             _dialogueSpeaker = Label(_dialoguePanel.transform, "MIRA", 30, TextAnchor.MiddleLeft,
                 new Vector2(0.27f, 0.62f), new Vector2(0.94f, 0.88f), Vector2.zero, Vector2.zero);
@@ -395,20 +613,11 @@ namespace Wonderfold.Game.UI
                 new Vector2(0.27f, 0.20f), new Vector2(0.94f, 0.65f), Vector2.zero, Vector2.zero);
             _dialogueLine.horizontalOverflow = HorizontalWrapMode.Wrap;
 
-            var buttonObject = new GameObject("Continue", typeof(Image), typeof(Button));
-            buttonObject.transform.SetParent(_dialoguePanel.transform, false);
-            var image = buttonObject.GetComponent<Image>();
-            image.sprite = ProceduralArt.RoundedSquare(0.2f, 0.02f);
-            image.color = new Color(0.95f, 0.78f, 0.35f, 1f);
-            var rect = image.rectTransform;
-            rect.anchorMin = new Vector2(0.70f, 0.03f);
-            rect.anchorMax = new Vector2(0.94f, 0.17f);
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-            var label = Label(image, "CONTINUE", 21, TextAnchor.MiddleCenter,
-                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            var continueButton = CreateButton(_dialoguePanel.transform, "Continue", "CONTINUE",
+                new Color(0.95f, 0.78f, 0.35f, 1f), new Vector2(0.70f, 0.03f), new Vector2(0.94f, 0.17f),
+                21, out var label);
             label.color = new Color(0.12f, 0.09f, 0.13f);
-            buttonObject.GetComponent<Button>().onClick.AddListener(() => _dialogueAdvance = true);
+            continueButton.onClick.AddListener(() => _dialogueAdvance = true);
             _dialoguePanel.SetActive(false);
         }
 
@@ -416,14 +625,20 @@ namespace Wonderfold.Game.UI
         {
             if (lines == null || lines.Count == 0) yield break;
             _dialoguePanel.SetActive(true);
+            _dialogueCanvasGroup.alpha = 0f;
+            yield return FadeDialogueIn();
             for (int i = 0; i < lines.Count; i++)
             {
                 SplitDialogue(lines[i], out var speaker, out var line);
                 _dialogueSpeaker.text = speaker.ToUpperInvariant();
                 _dialogueLine.text = line;
                 
-                string charId = speaker.ToLowerInvariant().Replace("professor ", "") + "_character";
-                var authoredSprite = ProceduralArt.LoadAuthoredSprite(charId);
+                // Names in dialogue are human-readable ("Professor Folio", "The Blank"); resource
+                // ids are stable snake case. Alpha cutouts take precedence in the UI as well as on the
+                // diorama, with the original portrait retained as a robust fallback.
+                string charId = speaker.ToLowerInvariant().Replace("professor ", "").Replace(' ', '_') + "_character";
+                var authoredSprite = ProceduralArt.LoadAuthoredSprite(charId + "_cutout")
+                    ?? ProceduralArt.LoadAuthoredSprite(charId);
                 
                 if (authoredSprite != null)
                 {
@@ -436,17 +651,98 @@ namespace Wonderfold.Game.UI
                     _dialoguePortrait.color = CharacterColour(speaker);
                 }
                 
-                _dialoguePortrait.rectTransform.localScale = Vector3.one * 1.08f;
+                yield return PlayPortraitEntrance(speaker);
                 _dialogueAdvance = false;
                 while (!_dialogueAdvance)
                 {
-                    _dialoguePortrait.rectTransform.localScale = Vector3.one *
-                        (1.04f + Mathf.Sin(Time.unscaledTime * 5f) * 0.04f);
+                    AnimateDialoguePortrait(speaker);
                     yield return null;
                 }
             }
 
             _dialoguePanel.SetActive(false);
+        }
+
+        private IEnumerator FadeDialogueIn()
+        {
+            float elapsed = 0f;
+            while (elapsed < 0.16f)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                _dialogueCanvasGroup.alpha = Mathf.SmoothStep(0f, 1f, elapsed / 0.16f);
+                yield return null;
+            }
+            _dialogueCanvasGroup.alpha = 1f;
+        }
+
+        private IEnumerator PlayPortraitEntrance(string speaker)
+        {
+            var portrait = _dialoguePortrait.rectTransform;
+            portrait.anchoredPosition = _dialoguePortraitBasePosition;
+            float elapsed = 0f;
+            while (elapsed < 0.18f)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.SmoothStep(0f, 1f, elapsed / 0.18f);
+                portrait.localScale = Vector3.one * Mathf.Lerp(0.78f, 1.08f, t);
+                portrait.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(IdleTilt(speaker) * -4f, 0f, t));
+                yield return null;
+            }
+            AnimateDialoguePortrait(speaker);
+        }
+
+        private void AnimateDialoguePortrait(string speaker)
+        {
+            var portrait = _dialoguePortrait.rectTransform;
+            float time = Time.unscaledTime;
+            float bob = 0f;
+            float drift = 0f;
+            float scale = 1.05f;
+            float tilt = IdleTilt(speaker);
+
+            switch ((speaker ?? string.Empty).Trim().ToUpperInvariant())
+            {
+                case "QUILL":
+                    bob = Mathf.Abs(Mathf.Sin(time * 4.3f)) * 7f;
+                    drift = Mathf.Sin(time * 2.1f) * 3f;
+                    scale += Mathf.Sin(time * 4.3f) * 0.045f;
+                    break;
+                case "PROFESSOR FOLIO":
+                    bob = Mathf.Sin(time * 1.35f) * 2f;
+                    scale += Mathf.Sin(time * 1.35f) * 0.012f;
+                    break;
+                case "LUNA":
+                    bob = Mathf.Sin(time * 1.8f) * 4f;
+                    drift = Mathf.Sin(time * 0.9f) * 2f;
+                    scale += Mathf.Sin(time * 1.8f) * 0.020f;
+                    break;
+                case "THE BLANK":
+                    bob = Mathf.Sin(time * 1.05f) * 7f;
+                    drift = Mathf.Sin(time * 0.62f) * 4f;
+                    scale += Mathf.Sin(time * 1.05f) * 0.030f;
+                    _dialoguePortrait.color = new Color(1f, 1f, 1f, 0.82f + Mathf.Sin(time * 2.5f) * 0.11f);
+                    break;
+                default:
+                    bob = Mathf.Sin(time * 2.0f) * 3f;
+                    scale += Mathf.Sin(time * 2.0f) * 0.018f;
+                    break;
+            }
+
+            portrait.anchoredPosition = _dialoguePortraitBasePosition + new Vector2(drift, bob);
+            portrait.localScale = Vector3.one * scale;
+            portrait.localRotation = Quaternion.Euler(0f, 0f, tilt + Mathf.Sin(time * 1.4f) * 0.55f);
+        }
+
+        private static float IdleTilt(string speaker)
+        {
+            switch ((speaker ?? string.Empty).Trim().ToUpperInvariant())
+            {
+                case "QUILL": return -3.0f;
+                case "PROFESSOR FOLIO": return 0.7f;
+                case "LUNA": return 1.3f;
+                case "THE BLANK": return -1.8f;
+                default: return -0.9f;
+            }
         }
 
         private void BuildChoicePanel()
@@ -465,20 +761,10 @@ namespace Wonderfold.Game.UI
 
         private void AddChoiceButton(Transform parent, string labelText, string value, Vector2 min, Vector2 max, Color colour)
         {
-            var go = new GameObject(value, typeof(Image), typeof(Button));
-            go.transform.SetParent(parent, false);
-            var image = go.GetComponent<Image>();
-            image.sprite = ProceduralArt.RoundedSquare(0.18f, 0.02f);
-            image.color = colour;
-            var rect = image.rectTransform;
-            rect.anchorMin = min;
-            rect.anchorMax = max;
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-            var label = Label(image, labelText, 27, TextAnchor.MiddleCenter,
-                new Vector2(0.06f, 0.12f), new Vector2(0.94f, 0.88f), Vector2.zero, Vector2.zero);
+            var button = CreateButton(parent, value, labelText, colour, min, max, 27, out var label,
+                new Vector2(0.06f, 0.12f), new Vector2(0.94f, 0.88f));
             label.color = new Color(0.08f, 0.07f, 0.13f);
-            go.GetComponent<Button>().onClick.AddListener(() => _choiceValue = value);
+            button.onClick.AddListener(() => _choiceValue = value);
         }
 
         public IEnumerator ChooseCarnivalStyle(Action<string> chosen)
@@ -529,7 +815,7 @@ namespace Wonderfold.Game.UI
         }
 
         private static RectTransform Row(Transform parent, Vector2 anchorMin, Vector2 anchorMax,
-            Vector2 offsetMin, Vector2 offsetMax)
+            Vector2 offsetMin, Vector2 offsetMax, out HorizontalLayoutGroup horizontal)
         {
             var go = new GameObject("Row", typeof(RectTransform), typeof(HorizontalLayoutGroup));
             go.transform.SetParent(parent, false);
@@ -540,11 +826,11 @@ namespace Wonderfold.Game.UI
             rect.offsetMin = offsetMin;
             rect.offsetMax = offsetMax;
 
-            var layout = go.GetComponent<HorizontalLayoutGroup>();
-            layout.spacing = 18f;
-            layout.childAlignment = TextAnchor.MiddleCenter;
-            layout.childForceExpandWidth = false;
-            layout.childForceExpandHeight = false;
+            horizontal = go.GetComponent<HorizontalLayoutGroup>();
+            horizontal.spacing = 18f;
+            horizontal.childAlignment = TextAnchor.MiddleCenter;
+            horizontal.childForceExpandWidth = false;
+            horizontal.childForceExpandHeight = false;
             return rect;
         }
 
@@ -570,6 +856,22 @@ namespace Wonderfold.Game.UI
             rect.offsetMin = offsetMin;
             rect.offsetMax = offsetMax;
             return label;
+        }
+
+        private static Button CreateButton(Component parent, string name, string text, Color colour,
+            Vector2 min, Vector2 max, int fontSize, out Text label, Vector2? labelMin = null, Vector2? labelMax = null)
+        {
+            var go = new GameObject(name, typeof(Image), typeof(Button));
+            go.transform.SetParent(parent.transform, false);
+            var image = go.GetComponent<Image>();
+            image.sprite = ProceduralArt.RoundedSquare(0.18f, 0.02f);
+            image.color = colour;
+            SetRect(image.rectTransform, min, max, Vector2.zero, Vector2.zero);
+            var button = go.GetComponent<Button>();
+            ButtonFeedback.Apply(button);
+            label = Label(image, text, fontSize, TextAnchor.MiddleCenter,
+                labelMin ?? Vector2.zero, labelMax ?? Vector2.one, Vector2.zero, Vector2.zero);
+            return button;
         }
     }
 }

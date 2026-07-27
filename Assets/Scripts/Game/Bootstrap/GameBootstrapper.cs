@@ -3,6 +3,7 @@ using UnityEngine.EventSystems;
 using Wonderfold.Core.Board;
 using Wonderfold.Core.Level;
 using Wonderfold.Core.Primitives;
+using Wonderfold.Game.Audio;
 using Wonderfold.Game.Meta;
 using Wonderfold.Game.Presentation;
 using Wonderfold.Game.Services;
@@ -36,8 +37,11 @@ namespace Wonderfold.Game.Bootstrap
         private LevelRunner _runner;
         private GameHud _hud;
         private StoryMapView _map;
+        private LiveArchiveView _archive;
+        private LiveOpsService _liveOps;
         private LevelDefinition _current;
         private LevelOutcome _lastOutcome = LevelOutcome.InProgress;
+        private bool _cameFromArchive;
 
         /// <summary>Creates the whole game in an empty scene, so there is nothing to set up by hand.</summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -72,18 +76,35 @@ namespace Wonderfold.Game.Bootstrap
 
             _hud = GameHud.Create(transform);
             _hud.PrimaryEndActionRequested += OnPrimaryEndAction;
+            _hud.MenuOpened += () => _runner?.SetPausedByMenu(true);
+            _hud.MenuClosed += () => _runner?.SetPausedByMenu(false);
+            _hud.RestartLevelRequested += RestartFromMenu;
+            _hud.ChapterMapRequested += OpenChapterMap;
+
+            _liveOps = LiveOpsService.Create(transform, _profile, _saves);
 
             _runner = gameObject.AddComponent<LevelRunner>();
-            _runner.Initialise(camera, boardView, input, _hud, diorama, _profile, _saves);
+            _runner.Initialise(camera, boardView, input, _hud, diorama, _profile, _saves, _liveOps);
             _runner.LevelFinished += OnLevelFinished;
-            FeedbackDirector.Create(transform, boardView);
+            FeedbackDirector.Create(transform, boardView, diorama);
+            WonderfoldAudioDirector.Create(transform);
 
             _map = StoryMapView.Create(transform);
             _map.LevelRequested += OnLevelRequested;
+            _map.ArchiveRequested += OpenArchive;
+            _map.ResumeRequested += ResumeFromMap;
+
+            _archive = LiveArchiveView.Create(transform);
+            _archive.PageRequested += OnArchivePageRequested;
+            _archive.Closed += () => _map.Open(_catalog, _profile);
+
+            // Showing up is what a streak counts, so it is registered on launch rather than on a win.
+            _liveOps.TouchStreak();
+            _liveOps.PrefetchEndless(_profile.EndlessDepth);
 
             if (_forceLevelId > 0) LoadStartingLevel();
             else if (_profile.HasActiveSession) ResumeActiveSession();
-            else _map.Open(_catalog, _profile);
+            else OpenChapterMap();
         }
 
         private void ResumeActiveSession()
@@ -93,12 +114,13 @@ namespace Wonderfold.Game.Bootstrap
             {
                 _profile.ActiveLevelId = 0;
                 _saves.Save(_profile);
-                _map.Open(_catalog, _profile);
+                OpenChapterMap();
                 return;
             }
             _current = level;
             _lastOutcome = LevelOutcome.InProgress;
             _map.Close();
+            _hud.SetGameplayVisible(true);
             _runner.ResumeLevel(level, _profile.ActiveSeed, _profile.ActiveMoves);
         }
 
@@ -127,12 +149,16 @@ namespace Wonderfold.Game.Bootstrap
             camera.backgroundColor = _background;
             camera.transform.position = new Vector3(0f, 0f, -10f);
             camera.transform.rotation = Quaternion.identity;
+            // A source without a listener is silent. Empty prototype scenes do not contain one by
+            // default, so make audio a first-class part of the runtime bootstrap.
+            if (FindAnyObjectByType<AudioListener>() == null) camera.gameObject.AddComponent<AudioListener>();
         }
 
         private void LoadStartingLevel()
         {
             int levelId = _forceLevelId > 0 ? _forceLevelId : _profile.HighestLevelUnlocked;
             _current = _catalog.ById(levelId) ?? _catalog.ByIndex(0);
+            _hud.SetGameplayVisible(true);
             _runner.LoadLevel(_current, _seed + _current.Id);
         }
 
@@ -155,18 +181,95 @@ namespace Wonderfold.Game.Bootstrap
             _current = level;
             _lastOutcome = LevelOutcome.InProgress;
             _map.Close();
+            _hud.SetGameplayVisible(true);
             _runner.LoadLevel(level, _seed + level.Id, packStartingRocket);
         }
 
-        private void OnLevelFinished(LevelDefinition level, LevelOutcome outcome)
+        private void OpenArchive()
+        {
+            _map.Close();
+            _runner?.SetPausedByMenu(true);
+            _hud?.SetGameplayVisible(false);
+            _archive.Open(_liveOps, _profile);
+        }
+
+        /// <summary>
+        /// Starts a page the archive has already woven and measured. Lives are still the cost of entry —
+        /// a page that is free to retry for ever is not a page anyone finishes carefully.
+        /// </summary>
+        private void OnArchivePageRequested(string pageKey)
+        {
+            _profile.RefreshLives(System.DateTime.UtcNow.Ticks);
+            if (_profile.Lives <= 0) return;
+
+            var audition = _liveOps.Cached(pageKey);
+            if (audition?.Level == null) return;
+
+            _cameFromArchive = true;
+            _current = audition.Level;
+            _lastOutcome = LevelOutcome.InProgress;
+            _archive.Hide();
+            _map.Close();
+            _hud.SetGameplayVisible(true);
+
+            // The page's own key seeds the session, so the same page plays the same way for everyone —
+            // which is the whole basis of a shared score and a shareable thread.
+            _runner.LoadPage(audition.Level, PageSeed(pageKey), pageKey);
+        }
+
+        private static int PageSeed(string pageKey)
+        {
+            unchecked
+            {
+                uint hash = 2166136261u;
+                for (int i = 0; i < pageKey.Length; i++)
+                {
+                    hash ^= pageKey[i];
+                    hash *= 16777619u;
+                }
+
+                return (int)hash;
+            }
+        }
+
+        private void OnLevelFinished(LevelDefinition level, LevelOutcome outcome, LiveRunOutcome live)
         {
             _current = level;
             _lastOutcome = outcome;
         }
 
+        private void RestartFromMenu()
+        {
+            _runner.SetPausedByMenu(false);
+            _runner.Restart();
+        }
+
+        private void OpenChapterMap()
+        {
+            _archive?.Hide();
+            _runner?.SetPausedByMenu(true);
+            _hud?.HideLevelEnd();
+            _hud?.SetGameplayVisible(false);
+            _map?.Open(_catalog, _profile);
+        }
+
+        private void ResumeFromMap()
+        {
+            _map.Close();
+            _hud.SetGameplayVisible(true);
+            _runner.SetPausedByMenu(false);
+        }
+
         private void OnPrimaryEndAction()
         {
             _hud.HideLevelEnd();
+
+            if (_cameFromArchive)
+            {
+                _cameFromArchive = false;
+                OpenArchive();
+                return;
+            }
 
             if (_forceLevelId > 0)
             {
@@ -179,7 +282,7 @@ namespace Wonderfold.Game.Bootstrap
                 _profile.RefreshLives(System.DateTime.UtcNow.Ticks);
                 if (_profile.Lives <= 0)
                 {
-                    _map.Open(_catalog, _profile);
+                    OpenChapterMap();
                     return;
                 }
                 _runner.Restart();
