@@ -647,6 +647,7 @@ namespace Wonderfold.Game.UI
             image.color = colour;
             SetRect(image.rectTransform, Vector2.zero, Vector2.one);
             var button = go.GetComponent<Button>();
+            ButtonFeedback.Apply(button);
             if (action != null) button.onClick.AddListener(action);
             return button;
         }

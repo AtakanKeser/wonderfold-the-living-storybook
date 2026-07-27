@@ -76,6 +76,10 @@ namespace Wonderfold.Game.Bootstrap
 
             _hud = GameHud.Create(transform);
             _hud.PrimaryEndActionRequested += OnPrimaryEndAction;
+            _hud.MenuOpened += () => _runner?.SetPausedByMenu(true);
+            _hud.MenuClosed += () => _runner?.SetPausedByMenu(false);
+            _hud.RestartLevelRequested += RestartFromMenu;
+            _hud.ChapterMapRequested += OpenChapterMap;
 
             _liveOps = LiveOpsService.Create(transform, _profile, _saves);
 
@@ -88,6 +92,7 @@ namespace Wonderfold.Game.Bootstrap
             _map = StoryMapView.Create(transform);
             _map.LevelRequested += OnLevelRequested;
             _map.ArchiveRequested += OpenArchive;
+            _map.ResumeRequested += ResumeFromMap;
 
             _archive = LiveArchiveView.Create(transform);
             _archive.PageRequested += OnArchivePageRequested;
@@ -99,7 +104,7 @@ namespace Wonderfold.Game.Bootstrap
 
             if (_forceLevelId > 0) LoadStartingLevel();
             else if (_profile.HasActiveSession) ResumeActiveSession();
-            else _map.Open(_catalog, _profile);
+            else OpenChapterMap();
         }
 
         private void ResumeActiveSession()
@@ -109,12 +114,13 @@ namespace Wonderfold.Game.Bootstrap
             {
                 _profile.ActiveLevelId = 0;
                 _saves.Save(_profile);
-                _map.Open(_catalog, _profile);
+                OpenChapterMap();
                 return;
             }
             _current = level;
             _lastOutcome = LevelOutcome.InProgress;
             _map.Close();
+            _hud.SetGameplayVisible(true);
             _runner.ResumeLevel(level, _profile.ActiveSeed, _profile.ActiveMoves);
         }
 
@@ -152,6 +158,7 @@ namespace Wonderfold.Game.Bootstrap
         {
             int levelId = _forceLevelId > 0 ? _forceLevelId : _profile.HighestLevelUnlocked;
             _current = _catalog.ById(levelId) ?? _catalog.ByIndex(0);
+            _hud.SetGameplayVisible(true);
             _runner.LoadLevel(_current, _seed + _current.Id);
         }
 
@@ -174,12 +181,15 @@ namespace Wonderfold.Game.Bootstrap
             _current = level;
             _lastOutcome = LevelOutcome.InProgress;
             _map.Close();
+            _hud.SetGameplayVisible(true);
             _runner.LoadLevel(level, _seed + level.Id, packStartingRocket);
         }
 
         private void OpenArchive()
         {
             _map.Close();
+            _runner?.SetPausedByMenu(true);
+            _hud?.SetGameplayVisible(false);
             _archive.Open(_liveOps, _profile);
         }
 
@@ -200,6 +210,7 @@ namespace Wonderfold.Game.Bootstrap
             _lastOutcome = LevelOutcome.InProgress;
             _archive.Hide();
             _map.Close();
+            _hud.SetGameplayVisible(true);
 
             // The page's own key seeds the session, so the same page plays the same way for everyone —
             // which is the whole basis of a shared score and a shareable thread.
@@ -227,6 +238,28 @@ namespace Wonderfold.Game.Bootstrap
             _lastOutcome = outcome;
         }
 
+        private void RestartFromMenu()
+        {
+            _runner.SetPausedByMenu(false);
+            _runner.Restart();
+        }
+
+        private void OpenChapterMap()
+        {
+            _archive?.Hide();
+            _runner?.SetPausedByMenu(true);
+            _hud?.HideLevelEnd();
+            _hud?.SetGameplayVisible(false);
+            _map?.Open(_catalog, _profile);
+        }
+
+        private void ResumeFromMap()
+        {
+            _map.Close();
+            _hud.SetGameplayVisible(true);
+            _runner.SetPausedByMenu(false);
+        }
+
         private void OnPrimaryEndAction()
         {
             _hud.HideLevelEnd();
@@ -249,7 +282,7 @@ namespace Wonderfold.Game.Bootstrap
                 _profile.RefreshLives(System.DateTime.UtcNow.Ticks);
                 if (_profile.Lives <= 0)
                 {
-                    _map.Open(_catalog, _profile);
+                    OpenChapterMap();
                     return;
                 }
                 _runner.Restart();

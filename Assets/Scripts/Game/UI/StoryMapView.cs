@@ -20,6 +20,8 @@ namespace Wonderfold.Game.UI
         private Text _chapter;
         private Text _livesLabel;
         private Text _progressLabel;
+        private Button _resumeButton;
+        private Text _resumeLabel;
         private RectTransform _levelsRoot;
         private readonly List<Button> _buttons = new List<Button>();
         private LevelCatalog _catalog;
@@ -36,6 +38,7 @@ namespace Wonderfold.Game.UI
 
         public event Action<int, bool> LevelRequested;
         public event Action ArchiveRequested;
+        public event Action ResumeRequested;
 
         public static StoryMapView Create(Transform parent)
         {
@@ -104,13 +107,19 @@ namespace Wonderfold.Game.UI
                 new Vector2(0.05f, 0.68f), new Vector2(0.95f, 0.74f), Vector2.zero, Vector2.zero);
             _progressLabel.color = new Color(0.78f, 0.75f, 0.88f);
 
+            _resumeButton = AddButton(transform, "Resume Page", new Vector2(0.28f, 0.615f), new Vector2(0.72f, 0.665f),
+                new Color(0.36f, 0.68f, 0.50f, 1f), () => ResumeRequested?.Invoke());
+            _resumeLabel = Label(_resumeButton.transform, "RESUME SAVED PAGE", 20, TextAnchor.MiddleCenter,
+                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            _resumeLabel.color = new Color(0.06f, 0.10f, 0.09f);
+
             BuildSetupPanel();
 
             var root = new GameObject("Level Pages", typeof(RectTransform));
             root.transform.SetParent(transform, false);
             _levelsRoot = root.GetComponent<RectTransform>();
-            _levelsRoot.anchorMin = new Vector2(0.04f, 0.06f);
-            _levelsRoot.anchorMax = new Vector2(0.96f, 0.67f);
+            _levelsRoot.anchorMin = new Vector2(0.04f, 0.16f);
+            _levelsRoot.anchorMax = new Vector2(0.96f, 0.60f);
             _levelsRoot.offsetMin = Vector2.zero;
             _levelsRoot.offsetMax = Vector2.zero;
             ApplyResponsiveLayout(true);
@@ -138,7 +147,8 @@ namespace Wonderfold.Game.UI
                 SetRect(_chapter.rectTransform, new Vector2(0.05f, 0.80f), new Vector2(0.95f, 0.87f));
                 SetRect(_livesLabel.rectTransform, new Vector2(0.05f, 0.73f), new Vector2(0.95f, 0.80f));
                 SetRect(_progressLabel.rectTransform, new Vector2(0.05f, 0.68f), new Vector2(0.95f, 0.74f));
-                SetRect(_levelsRoot, new Vector2(0.04f, 0.06f), new Vector2(0.96f, 0.67f));
+                SetRect(_resumeButton.transform as RectTransform, new Vector2(0.28f, 0.615f), new Vector2(0.72f, 0.665f));
+                SetRect(_levelsRoot, new Vector2(0.04f, 0.16f), new Vector2(0.96f, 0.60f));
                 _title.fontSize = 52;
                 _chapter.fontSize = 30;
                 return;
@@ -149,7 +159,8 @@ namespace Wonderfold.Game.UI
             SetRect(_chapter.rectTransform, new Vector2(0.08f, 0.79f), new Vector2(0.92f, 0.86f));
             SetRect(_livesLabel.rectTransform, new Vector2(0.08f, 0.72f), new Vector2(0.48f, 0.79f));
             SetRect(_progressLabel.rectTransform, new Vector2(0.50f, 0.72f), new Vector2(0.92f, 0.79f));
-            SetRect(_levelsRoot, new Vector2(0.08f, 0.09f), new Vector2(0.92f, 0.69f));
+            SetRect(_resumeButton.transform as RectTransform, new Vector2(0.34f, 0.655f), new Vector2(0.66f, 0.71f));
+            SetRect(_levelsRoot, new Vector2(0.08f, 0.16f), new Vector2(0.92f, 0.62f));
             _title.fontSize = 48;
             _chapter.fontSize = 26;
         }
@@ -198,6 +209,7 @@ namespace Wonderfold.Game.UI
 
                 int id = level.Id;
                 var button = page.GetComponent<Button>();
+                ButtonFeedback.Apply(button);
                 button.interactable = unlocked && _profile.Lives > 0;
                 button.onClick.AddListener(() => ShowSetup(id));
                 _buttons.Add(button);
@@ -279,6 +291,12 @@ namespace Wonderfold.Game.UI
             if (_profile == null) return;
             int restored = _profile.RestoredPieces.Count;
             _progressLabel.text = $"{restored}/20 paper scenes restored  ·  tools:  ⚒ {_profile.Hammers}   ➜ {_profile.RibbonRockets}";
+            if (_resumeButton != null)
+            {
+                _resumeButton.gameObject.SetActive(_profile.HasActiveSession);
+                if (_resumeLabel != null && _profile.HasActiveSession)
+                    _resumeLabel.text = $"RESUME PAGE {_profile.ActiveLevelId}";
+            }
             if (_profile.Lives >= PlayerProfile.MaxLives)
             {
                 _livesLabel.text = $"♥  {_profile.Lives}/{PlayerProfile.MaxLives}  —  every Storykeeper is ready";
@@ -338,6 +356,7 @@ namespace Wonderfold.Game.UI
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
             var button = go.GetComponent<Button>();
+            ButtonFeedback.Apply(button);
             button.onClick.AddListener(action);
             return button;
         }

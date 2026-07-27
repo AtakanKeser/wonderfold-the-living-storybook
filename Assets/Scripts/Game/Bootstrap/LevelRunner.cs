@@ -34,6 +34,7 @@ namespace Wonderfold.Game.Bootstrap
         private int _seed;
         private string _pageKey;
         private bool _isAuthored = true;
+        private bool _pausedByMenu;
         private int _layoutScreenWidth;
         private int _layoutScreenHeight;
 
@@ -98,6 +99,7 @@ namespace Wonderfold.Game.Bootstrap
         private void LoadCore(LevelDefinition definition, int seed, bool packStartingRocket, System.Collections.Generic.List<PlayerMove> replayMoves)
         {
             StopAllCoroutines();
+            _pausedByMenu = false;
             _definition = definition;
             _seed = seed;
 
@@ -109,6 +111,17 @@ namespace Wonderfold.Game.Bootstrap
             {
                 for (int i = 0; i < replayMoves.Count; i++) _session.TryExecute(replayMoves[i], out _);
                 _session.Events.Drain();
+            }
+
+            // A page is resumable as soon as it opens. This lets a player use Chapter Map immediately,
+            // even before making a first move, without silently losing the page they just selected.
+            if (_isAuthored)
+            {
+                _profile.ActiveLevelId = _definition.Id;
+                _profile.ActiveSeed = _seed;
+                _profile.ActiveMoves.Clear();
+                _profile.ActiveMoves.AddRange(_session.MoveHistory);
+                _saves.Save(_profile);
             }
 
             ApplyResponsiveBoardLayout(true);
@@ -154,13 +167,29 @@ namespace Wonderfold.Game.Bootstrap
         /// </summary>
         public void Restart() => LoadPage(_definition, _isAuthored ? _seed + 1 : _seed, _pageKey);
 
+        /// <summary>Closes player input while the chapter map or page menu is in front of the board.</summary>
+        public void SetPausedByMenu(bool paused)
+        {
+            _pausedByMenu = paused;
+            if (paused)
+            {
+                _input.Enabled = false;
+                _input.SelectTool(null);
+                _hud.ClearSelectedTool();
+                return;
+            }
+
+            if (_session != null && !_session.IsOver && !_boardView.IsAnimating)
+                _input.Enabled = true;
+        }
+
         private void OnMoveRequested(PlayerMove move) => Execute(move);
 
         private void OnFoldRequested(int regionId) => Execute(PlayerMove.Fold(regionId));
 
         private void OnToolSelected(PageTool? tool)
         {
-            if (_session == null || _session.IsOver || _boardView.IsAnimating) return;
+            if (_pausedByMenu || _session == null || _session.IsOver || _boardView.IsAnimating) return;
             _input.SelectTool(tool);
         }
 
@@ -168,12 +197,12 @@ namespace Wonderfold.Game.Bootstrap
         {
             if (_definition.IntroDialogue.Count > 0)
                 yield return _hud.PlayDialogue(_definition.IntroDialogue);
-            if (_session != null && !_session.IsOver) _input.Enabled = true;
+            if (_session != null && !_session.IsOver && !_pausedByMenu) _input.Enabled = true;
         }
 
         private void Execute(PlayerMove move)
         {
-            if (_session == null || _session.IsOver || _boardView.IsAnimating) return;
+            if (_pausedByMenu || _session == null || _session.IsOver || _boardView.IsAnimating) return;
 
             bool spentTool = false;
             if (move.Kind == MoveKind.UseTool)
@@ -230,7 +259,7 @@ namespace Wonderfold.Game.Bootstrap
 
             if (!_session.IsOver)
             {
-                _input.Enabled = true;
+                if (!_pausedByMenu) _input.Enabled = true;
                 return;
             }
 
