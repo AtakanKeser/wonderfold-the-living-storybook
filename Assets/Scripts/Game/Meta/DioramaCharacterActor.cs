@@ -85,7 +85,14 @@ namespace Wonderfold.Game.Meta
         /// <summary>Lets the player acknowledge a character without turning a touch into a board move.</summary>
         public bool TryReactToTouch(Vector3 worldPoint)
         {
-            if (!isActiveAndEnabled || _body == null || !_body.bounds.Contains(worldPoint)) return false;
+            if (!isActiveAndEnabled || _body == null) return false;
+            // The diorama deliberately sits on a deeper Z layer than the puzzle. ScreenToWorldPoint
+            // resolves touches on the board plane, so a full 3D Bounds.Contains check would reject
+            // every otherwise valid character tap. Character art is a 2D hit target.
+            var bounds = _body.bounds;
+            bool inside = worldPoint.x >= bounds.min.x && worldPoint.x <= bounds.max.x
+                && worldPoint.y >= bounds.min.y && worldPoint.y <= bounds.max.y;
+            if (!inside) return false;
 
             ReactToGameplay(worldPoint, 0.90f);
             PlayTouchVoice();

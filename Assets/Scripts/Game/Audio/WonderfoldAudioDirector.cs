@@ -3,9 +3,8 @@ using UnityEngine;
 namespace Wonderfold.Game.Audio
 {
     /// <summary>
-    /// Owns the chapter's music bed. The vertical slice keeps its audio self-contained by composing a
-    /// small, royalty-free loop at runtime: a celesta-like melody, a paper-soft pad and a carousel
-    /// pulse. It can later be replaced by a streamed AudioClip without changing any game code.
+    /// Owns the chapter's music bed. It prefers the authored, loopable chapter score in Resources and
+    /// retains a self-contained procedural score only as a safe fallback for incomplete builds.
     /// </summary>
     [RequireComponent(typeof(AudioSource))]
     public sealed class WonderfoldAudioDirector : MonoBehaviour
@@ -30,20 +29,23 @@ namespace Wonderfold.Game.Audio
             _music.playOnAwake = false;
             _music.loop = true;
             _music.spatialBlend = 0f;
-            _music.volume = 0.22f;
+            _music.volume = 0.26f;
             _music.priority = 64;
         }
 
         private void Initialise()
         {
             if (_music == null) Awake();
-            _music.clip = MidnightCarnivalComposer.Compose();
+            var authoredScore = Resources.Load<AudioClip>("Audio/midnight_carnival_theme");
+            _music.clip = authoredScore != null ? authoredScore : MidnightCarnivalComposer.Compose();
             _music.Play();
         }
 
         private void OnDestroy()
         {
-            if (_music != null && _music.clip != null) Destroy(_music.clip);
+            // Resource-owned audio clips are unloaded by Unity. Only destroy the runtime fallback.
+            if (_music != null && _music.clip != null && _music.clip.name == "Wonderfold Midnight Carnival Score")
+                Destroy(_music.clip);
         }
 
         private static AudioClip ComposeMidnightCarnivalLoop()
