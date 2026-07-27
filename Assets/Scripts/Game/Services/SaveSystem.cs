@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using Wonderfold.Core.Live;
 using Wonderfold.Core.Serialization;
 
 namespace Wonderfold.Game.Services
@@ -32,7 +33,88 @@ namespace Wonderfold.Game.Services
         public readonly List<Wonderfold.Core.Board.PlayerMove> ActiveMoves = new List<Wonderfold.Core.Board.PlayerMove>();
         public bool HasActiveSession => ActiveLevelId > 0;
 
+        // ---- the live archive -------------------------------------------------------------------
+        // None of this belongs in the core: the core knows how to weave and measure a page, and the
+        // profile is what remembers which ones this player has met.
+
+        /// <summary>Consecutive days played, and the one mend that can bridge a missed day.</summary>
+        public readonly StreakLedger Streak = new StreakLedger();
+
+        /// <summary>Best Story Ink per Daily Fold, keyed by day index. Drives "beat your own page".</summary>
+        public readonly Dictionary<int, int> DailyBestInk = new Dictionary<int, int>();
+
+        /// <summary>The winning thread for each daily, so the player can re-share or re-watch it.</summary>
+        public readonly Dictionary<int, string> DailyThreads = new Dictionary<int, string>();
+
+        /// <summary>Next page of the Endless Archive to attempt, and the deepest ever reached.</summary>
+        public int EndlessDepth = 1;
+        public int EndlessBestDepth;
+
+        public readonly QuestTracker Quests = new QuestTracker();
+
+        /// <summary>Which day's and week's errand lists the tracker currently holds.</summary>
+        public int QuestDayIndex = int.MinValue;
+        public int QuestWeekIndex = int.MinValue;
+
+        /// <summary>Refilling hearts is the second thing coins are for, after mending a streak.</summary>
+        public const int LifeRefillCost = 150;
+        public const int HammerCost = 120;
+        public const int RocketCost = 160;
+
         public bool IsUnlocked(int levelId) => levelId <= HighestLevelUnlocked;
+
+        public bool TrySpendCoins(int amount)
+        {
+            if (amount <= 0 || Coins < amount) return false;
+            Coins -= amount;
+            return true;
+        }
+
+        public void AddCoins(int amount)
+        {
+            if (amount <= 0) return;
+            Coins += amount;
+        }
+
+        public bool TryBuyLives()
+        {
+            if (Lives >= MaxLives || !TrySpendCoins(LifeRefillCost)) return false;
+            Lives = MaxLives;
+            LivesRefilledAtTicks = 0;
+            return true;
+        }
+
+        public bool TryBuyTool(Wonderfold.Core.Board.PageTool tool)
+        {
+            int cost = tool == Wonderfold.Core.Board.PageTool.Hammer ? HammerCost : RocketCost;
+            if (!TrySpendCoins(cost)) return false;
+            if (tool == Wonderfold.Core.Board.PageTool.Hammer) Hammers++;
+            else RibbonRockets++;
+            return true;
+        }
+
+        public int DailyBest(int dayIndex)
+        {
+            DailyBestInk.TryGetValue(dayIndex, out int ink);
+            return ink;
+        }
+
+        /// <summary>Keeps only the better run of a day, and the thread that produced it.</summary>
+        public bool RecordDailyResult(int dayIndex, int storyInk, string threadCode)
+        {
+            int best = DailyBest(dayIndex);
+            if (storyInk <= best) return false;
+
+            DailyBestInk[dayIndex] = storyInk;
+            if (!string.IsNullOrEmpty(threadCode)) DailyThreads[dayIndex] = threadCode;
+            return true;
+        }
+
+        public void RecordEndlessWin(int depth)
+        {
+            if (depth > EndlessBestDepth) EndlessBestDepth = depth;
+            if (depth >= EndlessDepth) EndlessDepth = depth + 1;
+        }
 
         /// <summary>Applies elapsed real time in whole 30-minute life intervals.</summary>
         public bool RefreshLives(long utcNowTicks)
@@ -120,7 +202,7 @@ namespace Wonderfold.Game.Services
     public sealed class SaveSystem
     {
         private const string FileName = "wonderfold-profile.json";
-        private const int Version = 2;
+        private const int Version = 3;
 
         private string Path => System.IO.Path.Combine(Application.persistentDataPath, FileName);
 
@@ -197,6 +279,34 @@ namespace Wonderfold.Game.Services
             }
             root.Set("activeMoves", activeMoves);
 
+            var live = JsonValue.NewObject();
+            live.Set("streak", profile.Streak.Current);
+            live.Set("bestStreak", profile.Streak.Best);
+            live.Set("streakDay", profile.Streak.LastDayIndex);
+            live.Set("mendsUsed", profile.Streak.MendsUsed);
+            live.Set("endlessDepth", profile.EndlessDepth);
+            live.Set("endlessBest", profile.EndlessBestDepth);
+            live.Set("questDay", profile.QuestDayIndex);
+            live.Set("questWeek", profile.QuestWeekIndex);
+
+            var dailyInk = JsonValue.NewObject();
+            foreach (var pair in profile.DailyBestInk) dailyInk.Set(pair.Key.ToString(), pair.Value);
+            live.Set("dailyInk", dailyInk);
+
+            var threads = JsonValue.NewObject();
+            foreach (var pair in profile.DailyThreads) threads.Set(pair.Key.ToString(), pair.Value);
+            live.Set("dailyThreads", threads);
+
+            var questProgress = JsonValue.NewObject();
+            foreach (var pair in profile.Quests.Progress) questProgress.Set(pair.Key, pair.Value);
+            live.Set("questProgress", questProgress);
+
+            var claimed = JsonValue.NewArray();
+            foreach (var id in profile.Quests.Claimed) claimed.Add(JsonValue.Create(id));
+            live.Set("questClaimed", claimed);
+
+            root.Set("live", live);
+
             return root.ToJson();
         }
 
@@ -252,6 +362,49 @@ namespace Wonderfold.Game.Services
                     else if (kind == Wonderfold.Core.Board.MoveKind.ActivateBooster) profile.ActiveMoves.Add(Wonderfold.Core.Board.PlayerMove.ActivateBooster(a));
                     else if (kind == Wonderfold.Core.Board.MoveKind.Fold) profile.ActiveMoves.Add(Wonderfold.Core.Board.PlayerMove.Fold(r));
                     else if (kind == Wonderfold.Core.Board.MoveKind.UseTool) profile.ActiveMoves.Add(Wonderfold.Core.Board.PlayerMove.UseTool(t, a));
+                }
+            }
+
+            // A version 2 save has no "live" block; every field below simply keeps its default, so an
+            // existing player picks up the archive with a clean slate rather than a wiped profile.
+            var live = root["live"];
+            if (live != null && !live.IsNull)
+            {
+                profile.Streak.Current = Mathf.Max(0, live["streak"].AsInt(0));
+                profile.Streak.Best = Mathf.Max(0, live["bestStreak"].AsInt(0));
+                profile.Streak.LastDayIndex = live["streakDay"].AsInt(StreakLedger.NeverPlayed);
+                profile.Streak.MendsUsed = Mathf.Max(0, live["mendsUsed"].AsInt(0));
+                profile.EndlessDepth = Mathf.Max(1, live["endlessDepth"].AsInt(1));
+                profile.EndlessBestDepth = Mathf.Max(0, live["endlessBest"].AsInt(0));
+                profile.QuestDayIndex = live["questDay"].AsInt(int.MinValue);
+                profile.QuestWeekIndex = live["questWeek"].AsInt(int.MinValue);
+
+                var dailyInk = live["dailyInk"];
+                for (int i = 0; i < dailyInk.Keys.Count; i++)
+                {
+                    var key = dailyInk.Keys[i];
+                    if (int.TryParse(key, out int day)) profile.DailyBestInk[day] = dailyInk[key].AsInt();
+                }
+
+                var threads = live["dailyThreads"];
+                for (int i = 0; i < threads.Keys.Count; i++)
+                {
+                    var key = threads.Keys[i];
+                    if (int.TryParse(key, out int day)) profile.DailyThreads[day] = threads[key].AsString(string.Empty);
+                }
+
+                var questProgress = live["questProgress"];
+                for (int i = 0; i < questProgress.Keys.Count; i++)
+                {
+                    var key = questProgress.Keys[i];
+                    profile.Quests.Progress[key] = questProgress[key].AsInt();
+                }
+
+                var claimed = live["questClaimed"];
+                for (int i = 0; i < claimed.Count; i++)
+                {
+                    var id = claimed[i].AsString();
+                    if (!string.IsNullOrEmpty(id)) profile.Quests.Claimed.Add(id);
                 }
             }
 

@@ -62,6 +62,7 @@ namespace Wonderfold.Core.Level
 
             ValidateSpawners(board, issues);
             ValidateGravity(board, issues);
+            ValidateReachableSurfaces(level, board, issues);
             ValidatePortals(level, board, issues);
             ValidateWalkers(level, board, issues);
             ValidateObstacleGroups(board, issues);
@@ -335,6 +336,40 @@ namespace Wonderfold.Core.Level
                 if (regionIndex >= 0)
                     board.Folds.ForceSide(regionIndex, board.Folds.Regions[regionIndex].InitialSide);
             }
+        }
+
+        /// <summary>
+        /// A coordinate outside every fold region can only ever show one face. Anything authored onto the
+        /// other face of such a cell is invisible for the whole level — and if a goal counts it ("clear
+        /// every torn page"), the level is unwinnable no matter how well it is played.
+        ///
+        /// <para>This is not hypothetical: it is exactly how the first generated pages measured at 8–42%
+        /// against a 65% target, and reading the level file would never have shown it.</para>
+        /// </summary>
+        private static void ValidateReachableSurfaces(LevelDefinition level, BoardModel board,
+            List<ValidationIssue> issues)
+        {
+            int stranded = 0;
+            GridCoord first = GridCoord.Invalid;
+
+            foreach (var coord in board.AllCoords())
+            {
+                if (board.Folds.RegionIndexAt(coord) >= 0) continue;
+
+                var visible = board.ActiveSide(coord);
+                var hidden = visible == SurfaceSide.Front ? SurfaceSide.Back : SurfaceSide.Front;
+                var cell = board.CellAt(coord, hidden);
+                if (cell == null || cell.Obstacle == null) continue;
+
+                stranded++;
+                if (!first.IsValid) first = coord;
+            }
+
+            if (stranded == 0) return;
+
+            issues.Add(new ValidationIssue(ValidationSeverity.Error,
+                $"{stranded} obstacle(s) sit on a face that no fold region can ever turn face up " +
+                $"(first at {first}). Nothing can reach them, so any goal counting them cannot complete."));
         }
 
         private static void ValidatePortals(LevelDefinition level, BoardModel board, List<ValidationIssue> issues)

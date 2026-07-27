@@ -35,6 +35,7 @@ namespace Wonderfold.Game.UI
         private int _layoutScreenHeight = -1;
 
         public event Action<int, bool> LevelRequested;
+        public event Action ArchiveRequested;
 
         public static StoryMapView Create(Transform parent)
         {
@@ -202,14 +203,17 @@ namespace Wonderfold.Game.UI
                 _buttons.Add(button);
             }
 
-            // --- LIVE OPS: WEEKLY LOST PAGE ---
-            int weeklyLevelId = (DateTime.UtcNow.DayOfYear / 7) % count + 1;
-            var liveOpsBtn = AddButton(_levelsRoot.transform, "LiveOps Button", new Vector2(0.1f, -0.15f), new Vector2(0.9f, -0.02f),
-                new Color(0.38f, 0.20f, 0.60f, 0.95f), () => ShowSetup(weeklyLevelId));
-            var liveOpsLabel = Label(liveOpsBtn.transform, "✦ WEEKLY LOST PAGE ✦\nPlay this week's restored memory", 
-                24, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            liveOpsLabel.color = new Color(1f, 0.85f, 0.40f);
-            
+            // The way into the living half of the game. It replaces an earlier placeholder that simply
+            // reopened an authored level on a weekly rotation — the archive now serves pages that are
+            // woven and measured for the occasion rather than borrowed from the chapter.
+            var archiveButton = AddButton(_levelsRoot.transform, "Living Archive",
+                new Vector2(0.06f, -0.17f), new Vector2(0.94f, -0.02f),
+                new Color(0.38f, 0.20f, 0.60f, 0.95f), () => ArchiveRequested?.Invoke());
+            var archiveLabel = Label(archiveButton.transform,
+                "✦ THE LIVING ARCHIVE ✦\nToday's shared Lost Page · the Endless Archive · errands",
+                23, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            archiveLabel.color = new Color(1f, 0.85f, 0.40f);
+
             RefreshHeader();
         }
 

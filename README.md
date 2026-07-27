@@ -25,6 +25,24 @@ win, the camera pulls back and the repaired panel takes its place in the scene.
 - **Built for measured iteration.** The exact gameplay core powers Unity, command-line simulation, level
   validation, and deterministic tests from one source of truth.
 
+### Three things the genre cannot currently do
+
+The gameplay core is deterministic, engine-free C# with a bot simulator attached. That was built for
+testing — and it turns out to buy three player-facing features the market leaders have no way to ship:
+
+- **A genuinely shared Daily Fold.** Match-3 boards are refilled from whatever random source each
+  client has, so a daily puzzle can never be the *same* puzzle for two people. Here the date picks the
+  seed, the seed weaves the page, and everybody on Earth plays the identical board — the Wordle
+  arrangement, in a genre that has never been able to run it honestly.
+- **The Endless Archive: infinite levels that are measured before they are served.** Every generated
+  page is played a few hundred times by the same bots that balanced the authored chapter, and the move
+  budget and objectives are tuned until the measured win rate lands in its target band. Running out of
+  levels is the genre's terminal churn event; this removes it without a content treadmill.
+- **Story Threads.** A whole playthrough is a seed plus an ordered list of intents, so it compresses to
+  a ~70-character code. Paste a friend's thread and the game rebuilds their page and replays their
+  solve move for move — and recomputes the score rather than believing it. No server, no video, no
+  trust required.
+
 ## Play it
 
 1. Open this folder with **Unity Hub** using Unity **6000.5.5f1**.
@@ -51,9 +69,18 @@ dotnet run --project Tools/Wonderfold.Sim -- play --level 10 --seed 42
 
 # Generate a balance report with deterministic bots
 dotnet run --project Tools/Wonderfold.Sim -- simulate --all --runs 500
+
+# Weave and audition the first 20 pages of the Endless Archive
+dotnet run --project Tools/Wonderfold.Sim -- weave --depth 1 --count 20
+
+# Check a fortnight of shared Daily Fold pages before they reach anyone
+dotnet run --project Tools/Wonderfold.Sim -- daily --count 14 --verbose
+
+# Have a bot solve today's page, print its Story Thread, and verify the thread
+dotnet run --project Tools/Wonderfold.Sim -- replay --seed 7
 ```
 
-The current suite contains **63 passing tests**. The Unity layer is also validated with a Unity 6000.5.5f1
+The current suite contains **103 passing tests**. The Unity layer is also validated with a Unity 6000.5.5f1
 batch compilation pass.
 
 ## Included systems
@@ -65,6 +92,7 @@ batch compilation pass.
 | Power-ups | Ribbon Rocket, Ink Bloom, Origami Bird, Prism Bookmark, Golden Stitch, and combinations |
 | Level variety | Eight obstacle types, eight goals, portals, walkers, Blank Tide, and a pop-up boss |
 | Meta flow | Chapter map, unlocks, lives, pre-level rocket, in-level tools, story choice, saved diorama progress |
+| Living archive | Shared Daily Fold, bot-auditioned Endless Archive, Story Thread share/verify codes, streaks with a paid mend, daily and weekly errands, a coin economy that spends |
 | Presentation | Runtime UI, dialogue, paper-style sprites, authored visual overrides, reactive character staging, VFX, match/booster SFX, a Midnight Carnival music loop, haptics, camera pull-back |
 | Authoring | JSON level format, Unity Level Laboratory, CLI validation, and balance simulation |
 
@@ -75,6 +103,11 @@ and shared by the Unity game, automated tests, and the simulation tools. Unity p
 core's ordered event stream; it does not infer gameplay from rendered objects. This keeps play, replay,
 testing, and balancing deterministic.
 
+`Assets/Scripts/Core/Live` builds on exactly that determinism: `PageWeaver` invents a page from a seed,
+`PageAudition` measures it with the bot simulator until it lands in its win-rate band, and `ReplayCode`
+packs a run into a shareable string. Because none of it needs the engine, a shared page can be checked
+from the command line before it ever reaches a player.
+
 ## Documentation
 
 - [Architecture](Docs/ARCHITECTURE.md)
@@ -83,5 +116,7 @@ testing, and balancing deterministic.
 
 ## Next steps
 
-The vertical slice is playable and validated. The highest-value follow-ups are Play Mode test coverage,
-a repeatable gameplay capture, frame-by-frame or skeletal character clips, and online live-event systems.
+The vertical slice is playable and validated, and the live archive runs entirely on-device. The
+highest-value follow-ups are Play Mode test coverage, a repeatable gameplay capture, frame-by-frame or
+skeletal character clips, and an optional server that turns local Daily Fold scores into real
+leaderboards — the client already produces verifiable results, so the server only has to rank them.
