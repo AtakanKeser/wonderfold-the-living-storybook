@@ -147,6 +147,14 @@ namespace Wonderfold.Game.UI
                 _buttons.Add(button);
             }
 
+            // --- LIVE OPS: WEEKLY LOST PAGE ---
+            int weeklyLevelId = (DateTime.UtcNow.DayOfYear / 7) % count + 1;
+            var liveOpsBtn = AddButton(_levelsRoot.transform, "LiveOps Button", new Vector2(0.1f, -0.15f), new Vector2(0.9f, -0.02f),
+                new Color(0.38f, 0.20f, 0.60f, 0.95f), () => ShowSetup(weeklyLevelId));
+            var liveOpsLabel = Label(liveOpsBtn.transform, "✦ WEEKLY LOST PAGE ✦\nPlay this week's restored memory", 
+                24, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            liveOpsLabel.color = new Color(1f, 0.85f, 0.40f);
+            
             RefreshHeader();
         }
 

@@ -82,7 +82,24 @@ namespace Wonderfold.Game.Bootstrap
             _map.LevelRequested += OnLevelRequested;
 
             if (_forceLevelId > 0) LoadStartingLevel();
+            else if (_profile.HasActiveSession) ResumeActiveSession();
             else _map.Open(_catalog, _profile);
+        }
+
+        private void ResumeActiveSession()
+        {
+            var level = _catalog.ById(_profile.ActiveLevelId);
+            if (level == null) 
+            {
+                _profile.ActiveLevelId = 0;
+                _saves.Save(_profile);
+                _map.Open(_catalog, _profile);
+                return;
+            }
+            _current = level;
+            _lastOutcome = LevelOutcome.InProgress;
+            _map.Close();
+            _runner.ResumeLevel(level, _profile.ActiveSeed, _profile.ActiveMoves);
         }
 
         private Camera BuildCamera()

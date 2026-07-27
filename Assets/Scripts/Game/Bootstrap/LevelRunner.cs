@@ -61,6 +61,16 @@ namespace Wonderfold.Game.Bootstrap
 
         public void LoadLevel(LevelDefinition definition, int seed, bool packStartingRocket = false)
         {
+            LoadCore(definition, seed, packStartingRocket, null);
+        }
+
+        public void ResumeLevel(LevelDefinition definition, int seed, System.Collections.Generic.List<PlayerMove> moves)
+        {
+            LoadCore(definition, seed, false, moves);
+        }
+
+        private void LoadCore(LevelDefinition definition, int seed, bool packStartingRocket, System.Collections.Generic.List<PlayerMove> replayMoves)
+        {
             StopAllCoroutines();
             _definition = definition;
             _seed = seed;
@@ -68,6 +78,12 @@ namespace Wonderfold.Game.Bootstrap
             _session = new LevelSession(definition, seed);
             _session.Start();
             if (packStartingRocket) _session.TryPlaceStartingRocket();
+
+            if (replayMoves != null)
+            {
+                for (int i = 0; i < replayMoves.Count; i++) _session.TryExecute(replayMoves[i], out _);
+                _session.Events.Drain();
+            }
 
             float cellSize = BoardLayout.FitCellSize(_camera, definition.Width, definition.Height);
             var layout = new BoardLayout(definition.Width, definition.Height, cellSize,
@@ -140,11 +156,16 @@ namespace Wonderfold.Game.Bootstrap
 
             if (spentTool)
             {
-                _saves.Save(_profile);
                 _input.SelectTool(null);
                 _hud.ClearSelectedTool();
                 _hud.RefreshProfile();
             }
+
+            _profile.ActiveLevelId = _definition.Id;
+            _profile.ActiveSeed = _seed;
+            _profile.ActiveMoves.Clear();
+            _profile.ActiveMoves.AddRange(_session.MoveHistory);
+            _saves.Save(_profile);
 
             _input.Enabled = false;
             _boardView.Play(_session.Events.Drain());
@@ -165,6 +186,9 @@ namespace Wonderfold.Game.Bootstrap
 
         private IEnumerator FinishLevel()
         {
+            _profile.ActiveLevelId = 0;
+            _profile.ActiveMoves.Clear();
+
             _input.Enabled = false;
             yield return new WaitForSeconds(0.35f);
 

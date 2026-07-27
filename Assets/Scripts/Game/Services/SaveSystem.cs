@@ -27,6 +27,11 @@ namespace Wonderfold.Game.Services
         /// <summary>Choices the player made at branch points, e.g. observatory vs firefly garden.</summary>
         public readonly Dictionary<string, string> StoryChoices = new Dictionary<string, string>();
 
+        public int ActiveLevelId;
+        public int ActiveSeed;
+        public readonly List<Wonderfold.Core.Board.PlayerMove> ActiveMoves = new List<Wonderfold.Core.Board.PlayerMove>();
+        public bool HasActiveSession => ActiveLevelId > 0;
+
         public bool IsUnlocked(int levelId) => levelId <= HighestLevelUnlocked;
 
         /// <summary>Applies elapsed real time in whole 30-minute life intervals.</summary>
@@ -176,6 +181,22 @@ namespace Wonderfold.Game.Services
             foreach (var pair in profile.StoryChoices) choices.Set(pair.Key, pair.Value);
             root.Set("storyChoices", choices);
 
+            root.Set("activeLevel", profile.ActiveLevelId);
+            root.Set("activeSeed", profile.ActiveSeed);
+            var activeMoves = JsonValue.NewArray();
+            for (int i = 0; i < profile.ActiveMoves.Count; i++)
+            {
+                var move = profile.ActiveMoves[i];
+                var m = JsonValue.NewObject();
+                m.Set("k", (int)move.Kind);
+                m.Set("ax", move.A.X); m.Set("ay", move.A.Y);
+                m.Set("bx", move.B.X); m.Set("by", move.B.Y);
+                m.Set("r", move.RegionId);
+                m.Set("t", (int)move.Tool);
+                activeMoves.Add(m);
+            }
+            root.Set("activeMoves", activeMoves);
+
             return root.ToJson();
         }
 
@@ -211,6 +232,27 @@ namespace Wonderfold.Game.Services
             {
                 var key = choices.Keys[i];
                 profile.StoryChoices[key] = choices[key].AsString(string.Empty);
+            }
+
+            profile.ActiveLevelId = root["activeLevel"].AsInt(0);
+            profile.ActiveSeed = root["activeSeed"].AsInt(0);
+            var activeMoves = root["activeMoves"];
+            if (activeMoves != null)
+            {
+                for (int i = 0; i < activeMoves.Count; i++)
+                {
+                    var m = activeMoves[i];
+                    var kind = (Wonderfold.Core.Board.MoveKind)m["k"].AsInt(0);
+                    var a = new Wonderfold.Core.Primitives.GridCoord(m["ax"].AsInt(0), m["ay"].AsInt(0));
+                    var b = new Wonderfold.Core.Primitives.GridCoord(m["bx"].AsInt(0), m["by"].AsInt(0));
+                    int r = m["r"].AsInt(0);
+                    var t = (Wonderfold.Core.Board.PageTool)m["t"].AsInt(0);
+
+                    if (kind == Wonderfold.Core.Board.MoveKind.Swap) profile.ActiveMoves.Add(Wonderfold.Core.Board.PlayerMove.Swap(a, b));
+                    else if (kind == Wonderfold.Core.Board.MoveKind.ActivateBooster) profile.ActiveMoves.Add(Wonderfold.Core.Board.PlayerMove.ActivateBooster(a));
+                    else if (kind == Wonderfold.Core.Board.MoveKind.Fold) profile.ActiveMoves.Add(Wonderfold.Core.Board.PlayerMove.Fold(r));
+                    else if (kind == Wonderfold.Core.Board.MoveKind.UseTool) profile.ActiveMoves.Add(Wonderfold.Core.Board.PlayerMove.UseTool(t, a));
+                }
             }
 
             return profile;

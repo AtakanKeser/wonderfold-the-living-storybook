@@ -32,6 +32,9 @@ namespace Wonderfold.Core.Level
         public ResolutionEngine Engine { get; }
         public BoardEventLog Events { get; }
         public FoldMeter FoldMeter { get; }
+        
+        public int InitialSeed { get; }
+        public List<PlayerMove> MoveHistory { get; } = new List<PlayerMove>();
 
         public int MovesRemaining { get; private set; }
         public int TurnNumber { get; private set; }
@@ -48,6 +51,7 @@ namespace Wonderfold.Core.Level
         public LevelSession(LevelDefinition definition, int seed, GameRules rules = null)
         {
             Definition = definition;
+            InitialSeed = seed;
             Rules = rules ?? definition.Rules ?? GameRules.Default;
             Events = new BoardEventLog();
             Board = LevelBuilder.Build(definition, seed);
@@ -136,6 +140,8 @@ namespace Wonderfold.Core.Level
             }
 
             if (!executed) return false;
+            
+            MoveHistory.Add(move);
 
             TurnNumber++;
             Stats.Turns = TurnNumber;

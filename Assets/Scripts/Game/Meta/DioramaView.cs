@@ -104,8 +104,22 @@ namespace Wonderfold.Game.Meta
 
             go.transform.localPosition = new Vector3(x, y, 0f);
 
-            var body = AddPaperPart(go.transform, "Body", Vector3.zero, new Vector3(width, height, 1f), -20);
-            body.sprite = ProceduralArt.PaperTile();
+            string authoredId = id.ToLowerInvariant().Contains("ferris") ? "ferris_wheel_piece" 
+                              : id.ToLowerInvariant().Contains("carousel") ? "carousel_piece" 
+                              : null;
+            
+            Sprite authoredSprite = null;
+            if (authoredId != null) authoredSprite = ProceduralArt.LoadAuthoredSprite(authoredId);
+            
+            if (authoredSprite != null)
+            {
+                var body = AddPaperPart(go.transform, "Authored Piece", Vector3.zero, new Vector3(3f, 3f, 1f), -20);
+                body.sprite = authoredSprite;
+                return go.transform;
+            }
+
+            var procBody = AddPaperPart(go.transform, "Body", Vector3.zero, new Vector3(width, height, 1f), -20);
+            procBody.sprite = ProceduralArt.PaperTile();
 
             // Each restored slab gains a silhouette and a paper flap. That keeps the deterministic
             // authoring-free layout while giving the camera pull-back a recognisable 2.5D storybook read.
