@@ -1,7 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Wonderfold.Core.Events;
 using Wonderfold.Core.Level;
+using Wonderfold.Core.Primitives;
 using Wonderfold.Game.Presentation;
 using Wonderfold.Game.Services;
 
@@ -15,8 +17,9 @@ namespace Wonderfold.Game.Meta
     /// when a level is won the camera pulls back far enough to show you that. The restored piece then
     /// stays standing behind every level you play afterwards.</para>
     ///
-    /// <para>Pieces are placeholder paper slabs here — the shape of the sequence is real, the art is
-    /// not. Replacing <see cref="SpawnPiece"/> with authored prefabs is the whole art integration.</para>
+    /// <para>Authored production cutouts are loaded through Resources, then given a lightweight idle and
+    /// reaction pass. This keeps the scene immediately playable while leaving a clean upgrade path to
+    /// prefab or skeletal animation later.</para>
     /// </summary>
     public sealed class DioramaView : MonoBehaviour
     {
@@ -24,10 +27,18 @@ namespace Wonderfold.Game.Meta
         [SerializeField] private float _pullBackZoom = 1.9f;
 
         private readonly Dictionary<string, Transform> _pieces = new Dictionary<string, Transform>();
-        private readonly List<Transform> _characters = new List<Transform>();
+        private readonly List<DioramaCharacterActor> _characters = new List<DioramaCharacterActor>();
         private Camera _camera;
         private Transform _stage;
+        private SpriteRenderer _background;
+        private DioramaCharacterActor _mira;
+        private DioramaCharacterActor _quill;
+        private DioramaCharacterActor _folio;
+        private DioramaCharacterActor _luna;
+        private DioramaCharacterActor _blank;
         private float _baseOrthographicSize;
+        private int _backdropScreenWidth = -1;
+        private int _backdropScreenHeight = -1;
 
         public static DioramaView Create(Transform parent, Camera camera)
         {
@@ -46,16 +57,124 @@ namespace Wonderfold.Game.Meta
             {
                 var bg = new GameObject("Background", typeof(SpriteRenderer));
                 bg.transform.SetParent(view._stage, false);
-                bg.transform.localPosition = new Vector3(0f, 2f, 10f); // pushed back
-                bg.transform.localScale = new Vector3(8f, 8f, 1f); // Adjust as necessary
+                bg.transform.localPosition = new Vector3(0f, 0f, 10f); // pushed back
                 var renderer = bg.GetComponent<SpriteRenderer>();
                 renderer.sortingOrder = -50;
                 renderer.sprite = bgSprite;
+                renderer.color = new Color(1f, 1f, 1f, 0.62f);
+                view._background = renderer;
             }
             
-            view.SpawnCharacter("Mira", new Vector3(-6.6f, -3.4f, 0f), new Color(0.96f, 0.43f, 0.56f));
-            view.SpawnCharacter("Quill", new Vector3(-5.7f, -3.5f, 0f), new Color(0.94f, 0.56f, 0.25f));
+            view._mira = view.SpawnCharacter("Mira", DioramaCharacterActor.Role.Mira, new Vector3(-6.6f, -3.4f, 0f),
+                new Color(0.96f, 0.43f, 0.56f), 24, 4.5f);
+            view._quill = view.SpawnCharacter("Quill", DioramaCharacterActor.Role.Quill, new Vector3(-5.7f, -3.5f, 0f),
+                new Color(0.94f, 0.56f, 0.25f), 26, 4.2f);
+            view._folio = view.SpawnCharacter("Professor Folio", DioramaCharacterActor.Role.Folio, new Vector3(6.55f, -3.5f, 0f),
+                new Color(0.74f, 0.56f, 0.34f), -12, 2.75f);
+            view._luna = view.SpawnCharacter("Luna", DioramaCharacterActor.Role.Luna, new Vector3(5.25f, -3.45f, 0f),
+                new Color(0.61f, 0.67f, 1f), -11, 2.75f);
+            view._blank = view.SpawnCharacter("The Blank", DioramaCharacterActor.Role.Blank,
+                new Vector3(6.0f, 2.7f, 0f), new Color(0.78f, 0.78f, 0.85f), -28, 2.65f);
+            view._blank.gameObject.SetActive(false);
+            view.FitBackdrop();
             return view;
+        }
+
+        /// <summary>Aligns scene dressing with the board's reserved play area after a display change.</summary>
+        public void ApplyBoardLayout(BoardLayout layout)
+        {
+            if (layout == null) return;
+            bool landscape = _camera != null && _camera.aspect >= 1.15f;
+            var bounds = layout.WorldBounds;
+            float cell = layout.CellSize;
+
+            // Gameplay is played with two readable protagonists rather than a small row of detached
+            // figurines. Mira owns the lower page edge and Quill lives on the board, making every
+            // reaction feel like it belongs to the puzzle rather than to its wallpaper.
+            _mira?.SetStageVisible(true);
+            _mira?.SetStageAppearance(landscape ? 4.8f : 4.35f, 24);
+            _mira?.SetStagePosition(new Vector3(bounds.min.x - cell * 0.22f, bounds.min.y + cell * 0.78f, 0f));
+
+            _quill?.SetStageVisible(true);
+            _quill?.SetStageAppearance(landscape ? 4.55f : 4.15f, 26);
+            _quill?.SetStagePosition(new Vector3(bounds.center.x + cell * 0.12f, bounds.center.y + cell * 0.10f, 0f));
+
+            // Folio and Luna remain part of the restored diorama and dialogue, but keeping them off
+            // the moment-to-moment board prevents the gameplay frame from becoming visual clutter.
+            _folio?.SetStageVisible(false);
+            _luna?.SetStageVisible(false);
+
+            _blank?.SetStageAppearance(landscape ? 3.65f : 3.30f, 18);
+            _blank?.SetStagePosition(new Vector3(bounds.max.x - cell * 0.40f, bounds.max.y - cell * 0.72f, 0f));
+        }
+
+        /// <summary>Converts descriptive board events into character performances at the affected cell.</summary>
+        public void ReactToBoardEvent(BoardEvent boardEvent, BoardLayout layout)
+        {
+            if (boardEvent == null || layout == null) return;
+
+            Vector3 focus = layout.WorldBounds.center;
+            float intensity;
+            switch (boardEvent)
+            {
+                case TilesClearedEvent cleared:
+                    focus = AverageCellPosition(cleared.Cells, layout);
+                    intensity = Mathf.Clamp01(0.30f + cleared.Cells.Count * 0.06f +
+                        (cleared.Cause == ClearCause.Booster ? 0.22f : 0f));
+                    break;
+                case BoosterCreatedEvent created:
+                    focus = layout.WorldOf(created.At.Coord);
+                    intensity = 0.62f;
+                    break;
+                case BoosterActivatedEvent activated:
+                    focus = layout.WorldOf(activated.At.Coord);
+                    intensity = 0.90f;
+                    break;
+                case BoosterComboEvent combo:
+                    focus = layout.WorldOf(combo.At.Coord);
+                    intensity = 1f;
+                    break;
+                case BoardFoldedEvent folded:
+                    focus = layout.WorldBounds.center;
+                    intensity = 0.74f;
+                    break;
+                default:
+                    return;
+            }
+
+            _quill?.ReactToGameplay(focus, intensity);
+            _mira?.ReactToGameplay(focus, intensity * 0.82f);
+            if (_blank != null && _blank.gameObject.activeInHierarchy)
+                _blank.ReactToGameplay(focus, intensity * 0.55f);
+        }
+
+        private static Vector3 AverageCellPosition(System.Collections.Generic.IReadOnlyList<CellRef> cells,
+            BoardLayout layout)
+        {
+            if (cells == null || cells.Count == 0) return layout.WorldBounds.center;
+            Vector3 sum = Vector3.zero;
+            for (int i = 0; i < cells.Count; i++) sum += layout.WorldOf(cells[i].Coord);
+            return sum / cells.Count;
+        }
+
+        private void Update()
+        {
+            if (Screen.width == _backdropScreenWidth && Screen.height == _backdropScreenHeight) return;
+            FitBackdrop();
+        }
+
+        private void FitBackdrop()
+        {
+            _backdropScreenWidth = Screen.width;
+            _backdropScreenHeight = Screen.height;
+            if (_background == null || _background.sprite == null || _camera == null) return;
+
+            var size = _background.sprite.bounds.size;
+            if (size.x <= 0f || size.y <= 0f) return;
+            float cameraHeight = _camera.orthographicSize * 2f;
+            float cameraWidth = cameraHeight * _camera.aspect;
+            float scale = Mathf.Max(cameraWidth / size.x, cameraHeight / size.y) * 1.05f;
+            _background.transform.localScale = Vector3.one * scale;
         }
 
         /// <summary>Rebuilds the backdrop for a level, showing every piece the player has already mended.</summary>
@@ -63,6 +182,7 @@ namespace Wonderfold.Game.Meta
         {
             foreach (var piece in profile.RestoredPieces) EnsurePiece(piece, true, profile);
             if (!string.IsNullOrEmpty(level.DioramaPieceId)) EnsurePiece(level.DioramaPieceId, false, profile);
+            if (_blank != null) _blank.SetStageVisible(level.Id >= 18);
         }
 
         private void EnsurePiece(string id, bool restored, PlayerProfile profile)
@@ -73,12 +193,14 @@ namespace Wonderfold.Game.Meta
                 _pieces[id] = piece;
             }
 
+            piece.GetComponent<DioramaPieceMotion>()?.SetRestored(restored);
             var renderers = piece.GetComponentsInChildren<SpriteRenderer>();
+            Color tint = restored
+                ? RestoredTint(id, profile)
+                : new Color(0.55f, 0.55f, 0.60f, 0.35f);
             for (int i = 0; i < renderers.Length; i++)
             {
-                renderers[i].color = restored
-                    ? PieceColour(id, profile)
-                    : new Color(0.55f, 0.55f, 0.60f, 0.35f);
+                renderers[i].color = tint;
             }
 
             piece.localScale = restored ? Vector3.one : new Vector3(1f, 0.15f, 1f);
@@ -103,13 +225,21 @@ namespace Wonderfold.Game.Meta
             float height = (float)(random.NextDouble() * 2.4 + 1.2);
 
             go.transform.localPosition = new Vector3(x, y, 0f);
+            var motion = go.AddComponent<DioramaPieceMotion>();
+            motion.Initialise(id);
 
             string authoredId = id.ToLowerInvariant().Contains("ferris") ? "ferris_wheel_piece" 
                               : id.ToLowerInvariant().Contains("carousel") ? "carousel_piece" 
                               : null;
             
             Sprite authoredSprite = null;
-            if (authoredId != null) authoredSprite = ProceduralArt.LoadAuthoredSprite(authoredId);
+            if (authoredId != null)
+            {
+                // The alpha cutouts layer naturally into the 2.5D stage; the older JPG art remains
+                // available during an incremental asset migration.
+                authoredSprite = ProceduralArt.LoadAuthoredSprite(authoredId + "_cutout")
+                    ?? ProceduralArt.LoadAuthoredSprite(authoredId);
+            }
             
             if (authoredSprite != null)
             {
@@ -150,6 +280,10 @@ namespace Wonderfold.Game.Meta
             return Color.HSVToRGB(hue, 0.45f, 0.92f);
         }
 
+        /// <summary>Keeps painted art rich while still carrying the chapter's palette into the scene.</summary>
+        private static Color RestoredTint(string id, PlayerProfile profile) =>
+            Color.Lerp(Color.white, PieceColour(id, profile), 0.18f);
+
         private static SpriteRenderer AddPaperPart(Transform parent, string name, Vector3 position, Vector3 scale,
             int order)
         {
@@ -162,40 +296,23 @@ namespace Wonderfold.Game.Meta
             return renderer;
         }
 
-        private void SpawnCharacter(string name, Vector3 position, Color colour)
+        private DioramaCharacterActor SpawnCharacter(string name, DioramaCharacterActor.Role role, Vector3 position,
+            Color colour, int sortingOrder, float scale)
         {
-            var root = new GameObject(name).transform;
-            root.SetParent(_stage, false);
-            root.localPosition = position;
-            
-            var authored = ProceduralArt.LoadAuthoredSprite(name.ToLower() + "_character");
-            if (authored != null)
-            {
-                var body = AddPaperPart(root, "Authored Figure", Vector3.zero, new Vector3(3f, 3f, 1f), -12);
-                body.sprite = authored;
-                _characters.Add(root);
-                return;
-            }
-            
-            var procBody = AddPaperPart(root, "Paper Figure", Vector3.zero, new Vector3(0.65f, 0.95f, 1f), -12);
-            procBody.sprite = ProceduralArt.PaperTile();
-            procBody.color = colour;
-            var head = AddPaperPart(root, "Head", new Vector3(0f, 0.55f, -0.01f), new Vector3(0.52f, 0.52f, 1f), -11);
-            head.sprite = ProceduralArt.Disc();
-            head.color = new Color(1f, 0.86f, 0.72f);
-            _characters.Add(root);
+            // Prefer the alpha cutout for the stage. The older JPG portraits remain a deliberate
+            // fallback so a missing optional art import can never make the runtime scene blank.
+            string characterId = CharacterResourceId(name);
+            var authored = ProceduralArt.LoadAuthoredSprite(characterId + "_cutout")
+                ?? ProceduralArt.LoadAuthoredSprite(characterId);
+            var actor = DioramaCharacterActor.Create(_stage, name, role, position, authored, colour, sortingOrder, scale);
+            _characters.Add(actor);
+            return actor;
         }
 
-        private void Update()
+        private static string CharacterResourceId(string name)
         {
-            for (int i = 0; i < _characters.Count; i++)
-            {
-                var character = _characters[i];
-                if (character == null) continue;
-                character.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(Time.time * 1.8f + i) * 3f);
-                character.localPosition = new Vector3(character.localPosition.x,
-                    -3.45f + i * -0.08f + Mathf.Sin(Time.time * 2.3f + i) * 0.05f, character.localPosition.z);
-            }
+            string id = name.ToLowerInvariant().Replace("professor ", string.Empty).Replace(' ', '_');
+            return id + "_character";
         }
 
         /// <summary>
@@ -214,8 +331,15 @@ namespace Wonderfold.Game.Meta
 
             var startScale = piece.localScale;
             var endScale = Vector3.one;
-            var colour = PieceColour(level.DioramaPieceId, null);
+            var colour = RestoredTint(level.DioramaPieceId, null);
             var renderers = piece.GetComponentsInChildren<SpriteRenderer>();
+            piece.GetComponent<DioramaPieceMotion>()?.SetRestored(true);
+            piece.GetComponent<DioramaPieceMotion>()?.ReactToRestoration();
+            for (int i = 0; i < _characters.Count; i++)
+            {
+                if (_characters[i] != null && _characters[i].gameObject.activeInHierarchy)
+                    _characters[i].ReactToRestoration();
+            }
 
             float elapsed = 0f;
             while (elapsed < _pullBackDuration)
@@ -226,6 +350,7 @@ namespace Wonderfold.Game.Meta
 
                 _camera.orthographicSize = Mathf.Lerp(_baseOrthographicSize,
                     _baseOrthographicSize * _pullBackZoom, eased);
+                FitBackdrop();
 
                 // The paper unfolds upward — squash and stretch rather than a plain scale.
                 piece.localScale = new Vector3(
@@ -249,6 +374,7 @@ namespace Wonderfold.Game.Meta
                 elapsed += Time.deltaTime;
                 _camera.orthographicSize = Mathf.Lerp(_baseOrthographicSize * _pullBackZoom,
                     _baseOrthographicSize, Mathf.SmoothStep(0f, 1f, elapsed / 0.5f));
+                FitBackdrop();
                 yield return null;
             }
 

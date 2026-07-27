@@ -30,6 +30,8 @@ namespace Wonderfold.Game.Bootstrap
         private SaveSystem _saves;
         private DioramaView _diorama;
         private int _seed;
+        private int _layoutScreenWidth;
+        private int _layoutScreenHeight;
 
         public LevelSession Session => _session;
         public event System.Action<LevelDefinition, LevelOutcome> LevelFinished;
@@ -85,12 +87,7 @@ namespace Wonderfold.Game.Bootstrap
                 _session.Events.Drain();
             }
 
-            float cellSize = BoardLayout.FitCellSize(_camera, definition.Width, definition.Height);
-            var layout = new BoardLayout(definition.Width, definition.Height, cellSize,
-                new Vector3(0f, -_camera.orthographicSize * 0.1f, 0f));
-
-            _boardView.Bind(_session, layout);
-            _input.Bind(_camera, layout, _session.Board);
+            ApplyResponsiveBoardLayout(true);
             _input.SelectTool(null);
             _input.Enabled = false;
 
@@ -103,6 +100,27 @@ namespace Wonderfold.Game.Bootstrap
             // Drain whatever Start() produced without animating it; the board opens settled.
             _session.Events.Drain();
             StartCoroutine(BeginLevel());
+        }
+
+        private void Update()
+        {
+            if (_session == null || _boardView == null || _boardView.IsAnimating) return;
+            if (Screen.width == _layoutScreenWidth && Screen.height == _layoutScreenHeight) return;
+            ApplyResponsiveBoardLayout(false);
+        }
+
+        private void ApplyResponsiveBoardLayout(bool initial)
+        {
+            if (_session == null || _definition == null || _camera == null) return;
+
+            var layout = BoardLayout.CreateResponsive(_camera, _definition.Width, _definition.Height);
+            if (initial) _boardView.Bind(_session, layout);
+            else _boardView.Relayout(layout);
+
+            _input.Bind(_camera, layout, _session.Board);
+            _diorama?.ApplyBoardLayout(layout);
+            _layoutScreenWidth = Screen.width;
+            _layoutScreenHeight = Screen.height;
         }
 
         public void Restart() => LoadLevel(_definition, _seed + 1);

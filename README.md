@@ -65,7 +65,7 @@ batch compilation pass.
 | Power-ups | Ribbon Rocket, Ink Bloom, Origami Bird, Prism Bookmark, Golden Stitch, and combinations |
 | Level variety | Eight obstacle types, eight goals, portals, walkers, Blank Tide, and a pop-up boss |
 | Meta flow | Chapter map, unlocks, lives, pre-level rocket, in-level tools, story choice, saved diorama progress |
-| Presentation | Runtime UI, dialogue, paper-style sprites, authored visual overrides, VFX, audio tones, haptics, camera pull-back |
+| Presentation | Runtime UI, dialogue, paper-style sprites, authored visual overrides, reactive character staging, VFX, match/booster SFX, a Midnight Carnival music loop, haptics, camera pull-back |
 | Authoring | JSON level format, Unity Level Laboratory, CLI validation, and balance simulation |
 
 ## Architecture
@@ -84,5 +84,4 @@ testing, and balancing deterministic.
 ## Next steps
 
 The vertical slice is playable and validated. The highest-value follow-ups are Play Mode test coverage,
-mid-level save/resume, a repeatable gameplay capture, production-authored art and animation, and online
-live-event systems.
+a repeatable gameplay capture, frame-by-frame or skeletal character clips, and online live-event systems.

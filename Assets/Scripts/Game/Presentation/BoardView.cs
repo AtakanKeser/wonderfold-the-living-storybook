@@ -64,6 +64,15 @@ namespace Wonderfold.Game.Presentation
             SyncFromModel();
         }
 
+        /// <summary>Reflows a live board after an orientation or aspect-ratio change without resetting play.</summary>
+        public void Relayout(BoardLayout layout)
+        {
+            Layout = layout;
+            if (_session == null) return;
+            BuildDecor();
+            SyncFromModel();
+        }
+
         private void BuildDecor()
         {
             for (int i = 0; i < _decor.Count; i++)
@@ -97,7 +106,7 @@ namespace Wonderfold.Game.Presentation
 
                 alive.Add(cell.Tile.Id);
                 var view = Acquire(cell.Tile);
-                view.Refresh(cell.Tile);
+                view.Bind(cell.Tile, Layout.CellSize);
                 view.SnapTo(Layout.WorldOf(coord));
             }
 

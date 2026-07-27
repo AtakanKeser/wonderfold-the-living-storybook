@@ -3,6 +3,7 @@ using UnityEngine.EventSystems;
 using Wonderfold.Core.Board;
 using Wonderfold.Core.Level;
 using Wonderfold.Core.Primitives;
+using Wonderfold.Game.Audio;
 using Wonderfold.Game.Meta;
 using Wonderfold.Game.Presentation;
 using Wonderfold.Game.Services;
@@ -76,7 +77,8 @@ namespace Wonderfold.Game.Bootstrap
             _runner = gameObject.AddComponent<LevelRunner>();
             _runner.Initialise(camera, boardView, input, _hud, diorama, _profile, _saves);
             _runner.LevelFinished += OnLevelFinished;
-            FeedbackDirector.Create(transform, boardView);
+            FeedbackDirector.Create(transform, boardView, diorama);
+            WonderfoldAudioDirector.Create(transform);
 
             _map = StoryMapView.Create(transform);
             _map.LevelRequested += OnLevelRequested;
@@ -127,6 +129,9 @@ namespace Wonderfold.Game.Bootstrap
             camera.backgroundColor = _background;
             camera.transform.position = new Vector3(0f, 0f, -10f);
             camera.transform.rotation = Quaternion.identity;
+            // A source without a listener is silent. Empty prototype scenes do not contain one by
+            // default, so make audio a first-class part of the runtime bootstrap.
+            if (FindAnyObjectByType<AudioListener>() == null) camera.gameObject.AddComponent<AudioListener>();
         }
 
         private void LoadStartingLevel()

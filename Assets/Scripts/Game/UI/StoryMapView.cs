@@ -15,6 +15,9 @@ namespace Wonderfold.Game.UI
     public sealed class StoryMapView : MonoBehaviour
     {
         private const float ReferenceWidth = 1080f;
+        private CanvasScaler _canvasScaler;
+        private Text _title;
+        private Text _chapter;
         private Text _livesLabel;
         private Text _progressLabel;
         private RectTransform _levelsRoot;
@@ -28,6 +31,8 @@ namespace Wonderfold.Game.UI
         private int _selectedLevelId;
         private bool _packStartingRocket;
         private static Font _font;
+        private int _layoutScreenWidth = -1;
+        private int _layoutScreenHeight = -1;
 
         public event Action<int, bool> LevelRequested;
 
@@ -46,6 +51,7 @@ namespace Wonderfold.Game.UI
             scaler.matchWidthOrHeight = 0.5f;
 
             var view = root.AddComponent<StoryMapView>();
+            view._canvasScaler = scaler;
             view.Build();
             root.SetActive(false);
             return view;
@@ -57,6 +63,7 @@ namespace Wonderfold.Game.UI
             _profile = profile;
             profile.RefreshLives(DateTime.UtcNow.Ticks);
             gameObject.SetActive(true);
+            ApplyResponsiveLayout(true);
             Rebuild();
         }
 
@@ -64,6 +71,7 @@ namespace Wonderfold.Game.UI
 
         private void Update()
         {
+            ApplyResponsiveLayout(false);
             if (!gameObject.activeInHierarchy || _profile == null || Time.unscaledTime < _nextClockUpdate) return;
             _nextClockUpdate = Time.unscaledTime + 1f;
             _profile.RefreshLives(DateTime.UtcNow.Ticks);
@@ -81,13 +89,13 @@ namespace Wonderfold.Game.UI
             Panel(transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
                 new Color(0.045f, 0.035f, 0.10f, 0.985f));
 
-            var title = Label(transform, "THE WONDERFOLD ARCHIVE", 52, TextAnchor.MiddleCenter,
+            _title = Label(transform, "THE WONDERFOLD ARCHIVE", 52, TextAnchor.MiddleCenter,
                 new Vector2(0.05f, 0.86f), new Vector2(0.95f, 0.97f), Vector2.zero, Vector2.zero);
-            title.color = new Color(1f, 0.84f, 0.38f);
+            _title.color = new Color(1f, 0.84f, 0.38f);
 
-            var chapter = Label(transform, "BOOK I  ·  THE MIDNIGHT CARNIVAL", 30, TextAnchor.MiddleCenter,
+            _chapter = Label(transform, "BOOK I  ·  THE MIDNIGHT CARNIVAL", 30, TextAnchor.MiddleCenter,
                 new Vector2(0.05f, 0.80f), new Vector2(0.95f, 0.87f), Vector2.zero, Vector2.zero);
-            chapter.color = new Color(0.77f, 0.82f, 0.98f);
+            _chapter.color = new Color(0.77f, 0.82f, 0.98f);
 
             _livesLabel = Label(transform, "", 32, TextAnchor.MiddleCenter,
                 new Vector2(0.05f, 0.73f), new Vector2(0.95f, 0.80f), Vector2.zero, Vector2.zero);
@@ -104,6 +112,53 @@ namespace Wonderfold.Game.UI
             _levelsRoot.anchorMax = new Vector2(0.96f, 0.67f);
             _levelsRoot.offsetMin = Vector2.zero;
             _levelsRoot.offsetMax = Vector2.zero;
+            ApplyResponsiveLayout(true);
+        }
+
+        private void ApplyResponsiveLayout(bool force)
+        {
+            if (_levelsRoot == null || (!force && Screen.width == _layoutScreenWidth && Screen.height == _layoutScreenHeight))
+                return;
+
+            _layoutScreenWidth = Screen.width;
+            _layoutScreenHeight = Screen.height;
+            bool landscape = Screen.width > Screen.height * 1.15f;
+            if (_canvasScaler != null)
+            {
+                _canvasScaler.referenceResolution = landscape
+                    ? new Vector2(1920f, 1080f)
+                    : new Vector2(ReferenceWidth, 1920f);
+                _canvasScaler.matchWidthOrHeight = 0.5f;
+            }
+
+            if (!landscape)
+            {
+                SetRect(_title.rectTransform, new Vector2(0.05f, 0.86f), new Vector2(0.95f, 0.97f));
+                SetRect(_chapter.rectTransform, new Vector2(0.05f, 0.80f), new Vector2(0.95f, 0.87f));
+                SetRect(_livesLabel.rectTransform, new Vector2(0.05f, 0.73f), new Vector2(0.95f, 0.80f));
+                SetRect(_progressLabel.rectTransform, new Vector2(0.05f, 0.68f), new Vector2(0.95f, 0.74f));
+                SetRect(_levelsRoot, new Vector2(0.04f, 0.06f), new Vector2(0.96f, 0.67f));
+                _title.fontSize = 52;
+                _chapter.fontSize = 30;
+                return;
+            }
+
+            // Landscape has room for a broad book-selection spread rather than a tall phone list.
+            SetRect(_title.rectTransform, new Vector2(0.08f, 0.86f), new Vector2(0.92f, 0.97f));
+            SetRect(_chapter.rectTransform, new Vector2(0.08f, 0.79f), new Vector2(0.92f, 0.86f));
+            SetRect(_livesLabel.rectTransform, new Vector2(0.08f, 0.72f), new Vector2(0.48f, 0.79f));
+            SetRect(_progressLabel.rectTransform, new Vector2(0.50f, 0.72f), new Vector2(0.92f, 0.79f));
+            SetRect(_levelsRoot, new Vector2(0.08f, 0.09f), new Vector2(0.92f, 0.69f));
+            _title.fontSize = 48;
+            _chapter.fontSize = 26;
+        }
+
+        private static void SetRect(RectTransform rect, Vector2 min, Vector2 max)
+        {
+            rect.anchorMin = min;
+            rect.anchorMax = max;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
         }
 
         private void Rebuild()

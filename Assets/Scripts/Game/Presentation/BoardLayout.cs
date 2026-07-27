@@ -60,5 +60,22 @@ namespace Wonderfold.Game.Presentation
             float byHeight = halfHeight * 2f * verticalFill / height;
             return Mathf.Min(byWidth, byHeight);
         }
+
+        /// <summary>
+        /// Creates the play-space layout for the active display shape. Portrait is a familiar full-width
+        /// mobile board; landscape reserves a calm information rail on the right instead of shrinking the
+        /// board into the middle of a widescreen canvas.
+        /// </summary>
+        public static BoardLayout CreateResponsive(Camera camera, int width, int height)
+        {
+            bool landscape = camera.aspect >= 1.15f;
+            float horizontalFill = landscape ? 0.65f : 0.92f;
+            float verticalFill = landscape ? 0.72f : 0.56f;
+            float cellSize = FitCellSize(camera, width, height, horizontalFill, verticalFill);
+
+            float centreX = landscape ? -camera.orthographicSize * camera.aspect * 0.29f : 0f;
+            float centreY = landscape ? -0.10f : -camera.orthographicSize * 0.08f;
+            return new BoardLayout(width, height, cellSize, new Vector3(centreX, centreY, 0f));
+        }
     }
 }
